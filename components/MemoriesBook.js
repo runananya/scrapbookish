@@ -25,18 +25,21 @@ export default function MemoriesBook({ places }) {
         gl={{ antialias: true, alpha: true, toneMapping: THREE.NoToneMapping }}
         dpr={[1, 2]}
         flat
+        style={{ width: "100%", height: "100%", display: "block" }}
       >
         <ambientLight intensity={1.1} />
         <directionalLight position={[3, 4, 6]} intensity={0.5} />
         <directionalLight position={[-3, -2, 4]} intensity={0.2} />
 
         <Suspense fallback={<DebugCube />}>
-          <Book
-            places={places}
-            pageIndex={pageIndex}
-            onTurnRight={() => canNext && setPageIndex(pageIndex + 1)}
-            onTurnLeft={() => canPrev && setPageIndex(pageIndex - 1)}
-          />
+          <group scale={1.15}>
+            <Book
+              places={places}
+              pageIndex={pageIndex}
+              onTurnRight={() => canNext && setPageIndex(pageIndex + 1)}
+              onTurnLeft={() => canPrev && setPageIndex(pageIndex - 1)}
+            />
+          </group>
         </Suspense>
       </Canvas>
 
