@@ -9,8 +9,18 @@ const DEFAULT_CENTER = [12.9716, 77.5946]; // Bangalore — sensible default
 
 function tileUrl() {
   const k = process.env.NEXT_PUBLIC_STADIA_API_KEY;
-  const base = "https://tiles.stadiamaps.com/tiles/stamen_watercolor/{z}/{x}/{y}.jpg";
-  return k ? `${base}?api_key=${k}` : base;
+  if (k) {
+    return `https://tiles.stadiamaps.com/tiles/stamen_watercolor/{z}/{x}/{y}.jpg?api_key=${k}`;
+  }
+  return "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
+}
+
+function tileAttribution() {
+  const k = process.env.NEXT_PUBLIC_STADIA_API_KEY;
+  if (k) {
+    return '&copy; <a href="https://stadiamaps.com/">Stadia Maps</a> &copy; <a href="https://stamen.com/">Stamen</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
+  }
+  return '&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
 }
 
 const pinIcon = L.divIcon({
@@ -94,7 +104,7 @@ export default function MapPicker({ value, onChange }) {
           scrollWheelZoom={false}
         >
           <TileLayer
-            attribution='&copy; <a href="https://stadiamaps.com/">Stadia Maps</a> &copy; <a href="https://stamen.com/">Stamen</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+            attribution={tileAttribution()}
             url={tileUrl()}
           />
           {markerPos && <Marker position={markerPos} icon={pinIcon} />}

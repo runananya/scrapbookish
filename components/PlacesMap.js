@@ -23,8 +23,20 @@ function makeIcon(status) {
 
 function tileUrl() {
   const k = process.env.NEXT_PUBLIC_STADIA_API_KEY;
-  const base = "https://tiles.stadiamaps.com/tiles/stamen_watercolor/{z}/{x}/{y}.jpg";
-  return k ? `${base}?api_key=${k}` : base;
+  if (k) {
+    // pretty watercolor (Stadia free tier — needs key for non-localhost domains)
+    return `https://tiles.stadiamaps.com/tiles/stamen_watercolor/{z}/{x}/{y}.jpg?api_key=${k}`;
+  }
+  // free fallback: CartoDB Voyager — clean artistic light theme, no auth needed
+  return "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
+}
+
+function tileAttribution() {
+  const k = process.env.NEXT_PUBLIC_STADIA_API_KEY;
+  if (k) {
+    return '&copy; <a href="https://stadiamaps.com/">Stadia Maps</a> &copy; <a href="https://stamen.com/">Stamen</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
+  }
+  return '&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
 }
 
 export default function PlacesMap({ places }) {
@@ -41,7 +53,7 @@ export default function PlacesMap({ places }) {
       scrollWheelZoom
     >
       <TileLayer
-        attribution='&copy; <a href="https://stadiamaps.com/">Stadia Maps</a> &copy; <a href="https://stamen.com/">Stamen</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        attribution={tileAttribution()}
         url={tileUrl()}
       />
       {places.map((p) => (
