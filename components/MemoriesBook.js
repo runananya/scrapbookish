@@ -10,6 +10,66 @@ const PAGE_W = 3.6;
 const PAGE_H = 4.8;
 const PAGE_GAP = 0.03; // separation between pages — must be > any internal z offset
 
+// Singleton notebook-paper texture: light blue with horizontal rules + red margin
+let _notebookTexture = null;
+function getNotebookTexture() {
+  if (typeof document === "undefined") return null;
+  if (_notebookTexture) return _notebookTexture;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = 768;
+  canvas.height = 1024;
+  const ctx = canvas.getContext("2d");
+
+  // soft blue paper
+  const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+  grad.addColorStop(0, "#eef4fa");
+  grad.addColorStop(1, "#dde9f3");
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // horizontal rule lines
+  ctx.strokeStyle = "#a8c5e0";
+  ctx.lineWidth = 1.6;
+  const lineCount = 22;
+  const topPad = 80;
+  const bottomPad = 60;
+  const usable = canvas.height - topPad - bottomPad;
+  const spacing = usable / lineCount;
+  for (let i = 0; i <= lineCount; i++) {
+    const y = topPad + i * spacing;
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(canvas.width, y);
+    ctx.stroke();
+  }
+
+  // red margin line down the left
+  ctx.strokeStyle = "#e07856";
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.moveTo(80, 0);
+  ctx.lineTo(80, canvas.height);
+  ctx.stroke();
+
+  // three subtle hole-punches on the left edge
+  ctx.fillStyle = "#fde2cf";
+  ctx.strokeStyle = "rgba(0,0,0,0.08)";
+  ctx.lineWidth = 1;
+  for (let h = 0; h < 3; h++) {
+    const cy = canvas.height * (0.18 + h * 0.32);
+    ctx.beginPath();
+    ctx.arc(28, cy, 14, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+  }
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.needsUpdate = true;
+  _notebookTexture = tex;
+  return tex;
+}
+
 export default function MemoriesBook({ places }) {
   // pageIndex: -1 = cover showing, 0..N-1 = showing places[pageIndex]
   const [pageIndex, setPageIndex] = useState(-1);
@@ -265,12 +325,14 @@ function MemoryFace({ place, index }) {
     return place.photo_url || null;
   }, [place.photos, place.photo_url]);
 
+  const notebookTexture = getNotebookTexture();
+
   return (
     <group>
-      {/* the paper page — flat peach so it doesn't go grey */}
+      {/* lined notebook paper — light blue with horizontal rules + red margin */}
       <mesh>
         <planeGeometry args={[PAGE_W, PAGE_H]} />
-        <meshBasicMaterial color="#fde2cf" toneMapped={false} side={THREE.DoubleSide} />
+        <meshBasicMaterial map={notebookTexture} toneMapped={false} side={THREE.DoubleSide} />
       </mesh>
 
       {/* page number top-right */}
