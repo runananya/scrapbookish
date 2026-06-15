@@ -332,7 +332,12 @@ function MemoryFace({ place, index }) {
       {/* lined notebook paper — light blue with horizontal rules + red margin */}
       <mesh>
         <planeGeometry args={[PAGE_W, PAGE_H]} />
-        <meshBasicMaterial map={notebookTexture} toneMapped={false} side={THREE.DoubleSide} />
+        <meshBasicMaterial
+          map={notebookTexture}
+          color={notebookTexture ? "#ffffff" : "#dde9f3"}
+          toneMapped={false}
+          side={THREE.DoubleSide}
+        />
       </mesh>
 
       {/* page number top-right */}
