@@ -143,13 +143,14 @@ const STATUS_META = {
 };
 
 function PlaceCard({ place, index, onDelete }) {
+  const router = useRouter();
   const tilt = [-3, 2, -2, 4, -4, 1, 3, -1][index % 8];
   const tapeKind = ["pink", "yellow", "sage"][index % 3];
   const meta = STATUS_META[place.status] || STATUS_META.visited;
 
   return (
     <motion.article
-      className="place-card"
+      className="place-card place-card-clickable"
       initial={{ opacity: 0, y: -60, rotate: 0, scale: 0.85 }}
       animate={{ opacity: 1, y: 0, rotate: tilt, scale: 1 }}
       transition={{
@@ -161,6 +162,7 @@ function PlaceCard({ place, index, onDelete }) {
       }}
       whileHover={{ y: -6, rotate: 0, transition: { type: "spring", stiffness: 300, damping: 18 } }}
       style={{ "--tilt": `${tilt}deg` }}
+      onClick={() => router.push(`/scrapbook/${place.id}`)}
     >
       <span className={`place-tape place-tape-${tapeKind}`} />
 
@@ -186,7 +188,11 @@ function PlaceCard({ place, index, onDelete }) {
         {place.review && <p className="place-review">{place.review}</p>}
       </div>
 
-      <button className="place-delete" onClick={onDelete} title="remove">×</button>
+      <button
+        className="place-delete"
+        onClick={(e) => { e.stopPropagation(); onDelete(); }}
+        title="remove"
+      >×</button>
     </motion.article>
   );
 }
