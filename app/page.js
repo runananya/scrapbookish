@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { createClient } from "@/lib/supabase/client";
 
 const STORAGE_NAME = "scrapbook:name";
 const STORAGE_PHOTO = "scrapbook:photo";
@@ -15,16 +17,35 @@ const EXAMPLE_POLAROIDS = [
 ];
 
 export default function Home() {
+  const router = useRouter();
   const [name, setName] = useState("");
   const [photo, setPhoto] = useState("");
   const [hydrated, setHydrated] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
+
+  // logged-in users shouldn't see the marketing landing — send them home
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user) {
+        router.replace("/scrapbook");
+      } else {
+        setAuthChecked(true);
+      }
+    });
+  }, [router]);
 
   useEffect(() => {
     setName(localStorage.getItem(STORAGE_NAME) || "");
     setPhoto(localStorage.getItem(STORAGE_PHOTO) || "");
     setHydrated(true);
   }, []);
+
+  // don't flash the marketing page before the auth check completes
+  if (!authChecked) {
+    return <main style={{ minHeight: "100vh" }} aria-hidden="true" />;
+  }
 
   function savePersonalization(newName, newPhoto) {
     setName(newName);
