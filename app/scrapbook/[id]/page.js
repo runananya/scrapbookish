@@ -4,7 +4,9 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { AnimatePresence } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
+import RecommendModal from "@/components/RecommendModal";
 
 const PlacesMap = dynamic(() => import("@/components/PlacesMap"), { ssr: false });
 
@@ -20,6 +22,8 @@ export default function PlaceDetailPage() {
   const [place, setPlace] = useState(null);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState(null);
+  const [showRecommend, setShowRecommend] = useState(false);
+  const [recSentMsg, setRecSentMsg] = useState("");
 
   useEffect(() => {
     const supabase = createClient();
@@ -130,14 +134,35 @@ export default function PlaceDetailPage() {
           </section>
         )}
 
-        {isMine && (
-          <div className="place-detail-actions">
+        <div className="place-detail-actions">
+          {user && (
+            <button onClick={() => setShowRecommend(true)} className="btn btn-primary">
+              ✨ recommend to a friend
+            </button>
+          )}
+          {isMine && (
             <button onClick={deletePlace} className="btn btn-ghost place-detail-delete">
               🗑 remove from scrapbook
             </button>
-          </div>
-        )}
+          )}
+          {recSentMsg && <p className="auth-msg success">{recSentMsg}</p>}
+        </div>
       </main>
+
+      <AnimatePresence>
+        {showRecommend && user && (
+          <RecommendModal
+            place={place}
+            currentUserId={user.id}
+            onClose={() => setShowRecommend(false)}
+            onSent={(count) => {
+              setShowRecommend(false);
+              setRecSentMsg(`✓ recommended to ${count} ${count === 1 ? "friend" : "friends"}!`);
+              setTimeout(() => setRecSentMsg(""), 3000);
+            }}
+          />
+        )}
+      </AnimatePresence>
     </>
   );
 }

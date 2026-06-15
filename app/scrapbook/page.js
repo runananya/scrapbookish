@@ -10,26 +10,80 @@ export default function ScrapbookPage() {
   const router = useRouter();
   const [user, setUser] = useState(null);
   const [places, setPlaces] = useState([]);
+  const [recs, setRecs] = useState([]); // pending recs with joined place + sender name
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  useEffect(() => { load(); }, []); // eslint-disable-line
+
+  async function load() {
     const supabase = createClient();
-    (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        router.replace("/login");
-        return;
-      }
-      setUser(user);
-      const { data } = await supabase
-        .from("places")
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      router.replace("/login");
+      return;
+    }
+    setUser(user);
+
+    const [{ data: placesData }, { data: recsData }] = await Promise.all([
+      supabase.from("places").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
+      supabase
+        .from("recommendations")
         .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
-      setPlaces(data || []);
-      setLoading(false);
-    })();
-  }, [router]);
+        .eq("to_user_id", user.id)
+        .eq("status", "pending")
+        .order("created_at", { ascending: false }),
+    ]);
+
+    setPlaces(placesData || []);
+
+    // hydrate recs with their place + sender name
+    if (recsData && recsData.length > 0) {
+      const placeIds = recsData.map((r) => r.place_id);
+      const senderIds = Array.from(new Set(recsData.map((r) => r.from_user_id)));
+      const [{ data: rPlaces }, { data: rSenders }] = await Promise.all([
+        supabase.from("places").select("*").in("id", placeIds),
+        supabase.from("profiles").select("id, display_name").in("id", senderIds),
+      ]);
+      const placeMap = Object.fromEntries((rPlaces || []).map((p) => [p.id, p]));
+      const senderMap = Object.fromEntries((rSenders || []).map((s) => [s.id, s.display_name || "friend"]));
+      setRecs(
+        recsData
+          .map((r) => ({ ...r, place: placeMap[r.place_id], senderName: senderMap[r.from_user_id] || "friend" }))
+          .filter((r) => r.place)
+      );
+    } else {
+      setRecs([]);
+    }
+
+    setLoading(false);
+  }
+
+  async function addRecToWishlist(rec) {
+    const supabase = createClient();
+    const src = rec.place;
+    const { error: insErr } = await supabase.from("places").insert({
+      user_id: user.id,
+      name: src.name,
+      location: src.location,
+      photo_url: src.photo_url,
+      photos: src.photos,
+      rating: null,
+      review: rec.note ? `recommended by ${rec.senderName}: ${rec.note}` : `recommended by ${rec.senderName}`,
+      status: "wishlist",
+      lat: src.lat,
+      lng: src.lng,
+    });
+    if (insErr) { alert(insErr.message); return; }
+    await supabase.from("recommendations").update({ status: "added" }).eq("id", rec.id);
+    setRecs((prev) => prev.filter((r) => r.id !== rec.id));
+    load();
+  }
+
+  async function dismissRec(rec) {
+    const supabase = createClient();
+    await supabase.from("recommendations").update({ status: "dismissed" }).eq("id", rec.id);
+    setRecs((prev) => prev.filter((r) => r.id !== rec.id));
+  }
 
   async function logout() {
     const supabase = createClient();
@@ -99,6 +153,17 @@ export default function ScrapbookPage() {
           </p>
         </header>
 
+        {recs.length > 0 && (
+          <section className="recs-section">
+            <h3 className="recs-section-title">✨ recommended for you</h3>
+            <div className="recs-row">
+              {recs.map((rec) => (
+                <RecCard key={rec.id} rec={rec} onAdd={() => addRecToWishlist(rec)} onDismiss={() => dismissRec(rec)} />
+              ))}
+            </div>
+          </section>
+        )}
+
         {places.length === 0 ? (
           <EmptyState />
         ) : (
@@ -110,6 +175,31 @@ export default function ScrapbookPage() {
         )}
       </main>
     </>
+  );
+}
+
+function RecCard({ rec, onAdd, onDismiss }) {
+  const place = rec.place;
+  return (
+    <article className="rec-card">
+      <span className="rec-card-tape" />
+      {place.photo_url ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={place.photo_url} alt={place.name} className="rec-card-photo" />
+      ) : (
+        <div className="rec-card-photo rec-card-photo-blank">📷</div>
+      )}
+      <div className="rec-card-body">
+        <p className="rec-card-from">from {rec.senderName} ♡</p>
+        <h4 className="rec-card-name">{place.name}</h4>
+        {place.location && <p className="rec-card-loc">📍 {place.location}</p>}
+        {rec.note && <p className="rec-card-note">&ldquo;{rec.note}&rdquo;</p>}
+        <div className="rec-card-actions">
+          <button onClick={onAdd} className="rec-add-btn">+ add to wishlist</button>
+          <button onClick={onDismiss} className="rec-dismiss-btn">dismiss</button>
+        </div>
+      </div>
+    </article>
   );
 }
 
