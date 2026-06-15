@@ -185,7 +185,13 @@ export default function GroupDetailPage() {
           <ul className="members-list">
             {members.map((m) => (
               <li key={m.user_id} className={`member-chip ${m.role === "admin" ? "member-admin" : ""}`}>
-                {m.display_name}
+                {m.user_id === user.id ? (
+                  <span>{m.display_name} (you)</span>
+                ) : (
+                  <Link href={`/u/${m.user_id}`} className="member-chip-link">
+                    {m.display_name}
+                  </Link>
+                )}
                 {m.role === "admin" && <span className="member-admin-tag">admin</span>}
               </li>
             ))}
