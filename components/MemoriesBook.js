@@ -32,7 +32,8 @@ export default function MemoriesBook({ places }) {
         <directionalLight position={[-3, -2, 4]} intensity={0.2} />
 
         <Suspense fallback={<DebugCube />}>
-          <group scale={1.15}>
+          {/* offset so the closed book is centered horizontally in the canvas */}
+          <group scale={1.15} position={[-PAGE_W / 2, 0, 0]}>
             <Book
               places={places}
               pageIndex={pageIndex}
@@ -258,18 +259,18 @@ function MemoryFace({ place, index }) {
     return r;
   }, [place.review]);
 
+  // prefer the first original photo (clean) over the collage which has text baked in
+  const pageImageUrl = useMemo(() => {
+    if (Array.isArray(place.photos) && place.photos.length > 0) return place.photos[0];
+    return place.photo_url || null;
+  }, [place.photos, place.photo_url]);
+
   return (
     <group>
-      {/* the paper page */}
+      {/* the paper page — flat peach so it doesn't go grey */}
       <mesh>
         <planeGeometry args={[PAGE_W, PAGE_H]} />
-        <meshStandardMaterial color="#fffdf7" roughness={0.95} side={THREE.DoubleSide} />
-      </mesh>
-
-      {/* peach paper wash */}
-      <mesh position={[0, 0, 0.001]}>
-        <planeGeometry args={[PAGE_W, PAGE_H]} />
-        <meshBasicMaterial color="#fde2cf" transparent opacity={0.35} />
+        <meshBasicMaterial color="#fde2cf" toneMapped={false} side={THREE.DoubleSide} />
       </mesh>
 
       {/* page number top-right */}
@@ -284,8 +285,8 @@ function MemoryFace({ place, index }) {
       </Text>
 
       {/* the photo area */}
-      {place.photo_url ? (
-        <PhotoMesh url={place.photo_url} />
+      {pageImageUrl ? (
+        <PhotoMesh url={pageImageUrl} />
       ) : (
         <mesh position={[0, 0.7, 0.01]}>
           <planeGeometry args={[PAGE_W * 0.78, PAGE_H * 0.4]} />
