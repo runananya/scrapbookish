@@ -1,6 +1,7 @@
 "use client";
 
-import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import { useEffect } from "react";
+import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -24,11 +25,10 @@ function makeIcon(status) {
 function tileUrl() {
   const k = process.env.NEXT_PUBLIC_STADIA_API_KEY;
   if (k) {
-    // pretty watercolor (Stadia free tier — needs key for non-localhost domains)
     return `https://tiles.stadiamaps.com/tiles/stamen_watercolor/{z}/{x}/{y}.jpg?api_key=${k}`;
   }
-  // free fallback: CartoDB Voyager — clean artistic light theme, no auth needed
-  return "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
+  // bulletproof fallback: plain OSM (no subdomain placeholders, no auth)
+  return "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 }
 
 function tileAttribution() {
@@ -36,7 +36,19 @@ function tileAttribution() {
   if (k) {
     return '&copy; <a href="https://stadiamaps.com/">Stadia Maps</a> &copy; <a href="https://stamen.com/">Stamen</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
   }
-  return '&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
+  return '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+}
+
+// Force Leaflet to recompute its container size after the surrounding flex
+// layout has settled. Without this, tiles can fail to load on first mount in
+// production builds where the container has zero size at init.
+function InvalidateSize() {
+  const map = useMap();
+  useEffect(() => {
+    const t = setTimeout(() => map.invalidateSize(), 100);
+    return () => clearTimeout(t);
+  }, [map]);
+  return null;
 }
 
 export default function PlacesMap({ places }) {
@@ -56,6 +68,7 @@ export default function PlacesMap({ places }) {
         attribution={tileAttribution()}
         url={tileUrl()}
       />
+      <InvalidateSize />
       {places.map((p) => (
         <Marker key={p.id} position={[p.lat, p.lng]} icon={makeIcon(p.status)}>
           <Popup>

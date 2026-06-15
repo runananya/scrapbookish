@@ -12,7 +12,7 @@ function tileUrl() {
   if (k) {
     return `https://tiles.stadiamaps.com/tiles/stamen_watercolor/{z}/{x}/{y}.jpg?api_key=${k}`;
   }
-  return "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
+  return "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 }
 
 function tileAttribution() {
@@ -20,7 +20,16 @@ function tileAttribution() {
   if (k) {
     return '&copy; <a href="https://stadiamaps.com/">Stadia Maps</a> &copy; <a href="https://stamen.com/">Stamen</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
   }
-  return '&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
+  return '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+}
+
+function InvalidateSize() {
+  const map = useMap();
+  useEffect(() => {
+    const t = setTimeout(() => map.invalidateSize(), 100);
+    return () => clearTimeout(t);
+  }, [map]);
+  return null;
 }
 
 const pinIcon = L.divIcon({
@@ -107,6 +116,7 @@ export default function MapPicker({ value, onChange }) {
             attribution={tileAttribution()}
             url={tileUrl()}
           />
+          <InvalidateSize />
           {markerPos && <Marker position={markerPos} icon={pinIcon} />}
           <FlyTo position={markerPos} />
           <ClickHandler onPick={pickFromClick} />
