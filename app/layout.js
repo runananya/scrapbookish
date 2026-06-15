@@ -1,4 +1,5 @@
 import { Caveat, Kalam, Permanent_Marker, Shadows_Into_Light } from "next/font/google";
+import "leaflet/dist/leaflet.css";
 import "./globals.css";
 
 const caveat = Caveat({

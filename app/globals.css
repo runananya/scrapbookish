@@ -1146,16 +1146,17 @@ body {
 }
 
 .map-stage {
-  flex: 1;
   margin: 0 56px 40px;
   border: 3px solid var(--ink);
   border-radius: 10px;
   overflow: hidden;
   box-shadow: 0 14px 30px rgba(0,0,0,0.15);
-  min-height: 540px;
+  height: 70vh;
+  min-height: 480px;
   background: #fffdf7;
   position: relative;
 }
+.map-stage .leaflet-container { height: 100%; width: 100%; }
 .map-empty { padding: 60px 32px; }
 
 .map-empty-overlay {
