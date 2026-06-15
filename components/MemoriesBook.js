@@ -8,7 +8,7 @@ import * as THREE from "three";
 
 const PAGE_W = 3.6;
 const PAGE_H = 4.8;
-const PAGE_GAP = 0.008;
+const PAGE_GAP = 0.03; // separation between pages — must be > any internal z offset
 
 export default function MemoriesBook({ places }) {
   // pageIndex: -1 = cover showing, 0..N-1 = showing places[pageIndex]
@@ -73,10 +73,7 @@ function DebugCube() {
 function Book({ places, pageIndex, onTurnRight, onTurnLeft }) {
   return (
     <group>
-      {/* back cover sits permanently at the far left as the "base" */}
-      <BackCover />
-
-      {/* cover (flippable like a page) */}
+      {/* cover (flippable like a page) — sits on top of the stack */}
       <FlipPage
         flipped={pageIndex > -1}
         z={(places.length + 1) * PAGE_GAP}
@@ -86,7 +83,7 @@ function Book({ places, pageIndex, onTurnRight, onTurnLeft }) {
         <CoverFace />
       </FlipPage>
 
-      {/* each memory is a page */}
+      {/* each memory is a page, stacked behind the cover */}
       {places.map((place, i) => (
         <FlipPage
           key={place.id}
@@ -123,17 +120,6 @@ function FlipPage({ flipped, z, children, onClickFront, onClickBack }) {
         </mesh>
       </group>
     </animated.group>
-  );
-}
-
-function BackCover() {
-  return (
-    <group position={[-PAGE_W / 2, 0, -0.04]}>
-      <mesh>
-        <boxGeometry args={[PAGE_W, PAGE_H, 0.06]} />
-        <meshStandardMaterial color="#5a3a1f" roughness={0.85} />
-      </mesh>
-    </group>
   );
 }
 
@@ -198,7 +184,7 @@ function CoverFace() {
 
       {/* "Yours" — big embossed gold */}
       <Text
-        position={[0, 0.7, 0.006]}
+        position={[0, 0.7, 0.008]}
         fontSize={0.46}
         color={GOLD}
         anchorX="center"
@@ -212,7 +198,7 @@ function CoverFace() {
 
       {/* "Truly" */}
       <Text
-        position={[0, 0.15, 0.006]}
+        position={[0, 0.15, 0.008]}
         fontSize={0.46}
         color={GOLD}
         anchorX="center"
@@ -226,7 +212,7 @@ function CoverFace() {
 
       {/* gold flourish divider */}
       <Text
-        position={[0, -0.32, 0.006]}
+        position={[0, -0.32, 0.008]}
         fontSize={0.18}
         color={GOLD}
         anchorX="center"
@@ -238,7 +224,7 @@ function CoverFace() {
 
       {/* subtitle */}
       <Text
-        position={[0, -0.62, 0.006]}
+        position={[0, -0.62, 0.008]}
         fontSize={0.075}
         color={GOLD_DEEP}
         anchorX="center"
@@ -252,7 +238,7 @@ function CoverFace() {
 
       {/* bottom imprint stamp */}
       <Text
-        position={[0, -1.18, 0.006]}
+        position={[0, -1.18, 0.008]}
         fontSize={0.065}
         color={GOLD}
         anchorX="center"
@@ -309,7 +295,7 @@ function MemoryFace({ place, index }) {
 
       {/* name */}
       <Text
-        position={[0, -0.25, 0.012]}
+        position={[0, -0.25, 0.008]}
         fontSize={0.18}
         color="#2a2a2a"
         anchorX="center"
@@ -323,7 +309,7 @@ function MemoryFace({ place, index }) {
       {/* location */}
       {place.location && (
         <Text
-          position={[0, -0.5, 0.012]}
+          position={[0, -0.5, 0.008]}
           fontSize={0.08}
           color="#6a4f3e"
           anchorX="center"
@@ -338,7 +324,7 @@ function MemoryFace({ place, index }) {
       {/* stars */}
       {stars && (
         <Text
-          position={[0, -0.7, 0.012]}
+          position={[0, -0.7, 0.008]}
           fontSize={0.13}
           color="#f4b400"
           anchorX="center"
@@ -352,7 +338,7 @@ function MemoryFace({ place, index }) {
       {/* review */}
       {reviewLines && (
         <Text
-          position={[0, -1.05, 0.012]}
+          position={[0, -1.05, 0.008]}
           fontSize={0.082}
           color="#3a2a17"
           anchorX="center"
