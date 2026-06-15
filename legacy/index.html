@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Scrapbook — your places, your friends, your scrapbook</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Kalam:wght@400;700&family=Permanent+Marker&family=Shadows+Into+Light&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <!-- floating scrapbook decorations scattered across the page -->
+  <span class="tape tape-1"></span>
+  <span class="tape tape-2"></span>
+  <span class="tape tape-3"></span>
+  <span class="doodle-star doodle-star-1">★</span>
+  <span class="doodle-star doodle-star-2">✦</span>
+  <span class="doodle-star doodle-star-3">★</span>
+  <span class="paperclip">📎</span>
+
+  <header class="nav">
+    <div class="logo">scrapbook<span class="logo-dot">.</span></div>
+    <nav class="nav-links">
+      <a href="#about" class="sticker sticker-pink">about</a>
+      <a href="#login" class="sticker sticker-yellow">log in</a>
+      <a href="#signup" class="sticker sticker-sage">sign up →</a>
+    </nav>
+  </header>
+
+  <main class="hero">
+
+    <!-- LEFT SIDE: the 3D girl pointing at the title -->
+    <div class="hero-character">
+      <!--
+        REPLACE THIS PLACEHOLDER WITH YOUR 3D GIRL:
+        Easiest path for a beginner:
+          1. Go to https://spline.design (free, no install)
+          2. Build or pick a 3D character pointing to the right
+          3. File → Export → Public URL → copy the <iframe> tag
+          4. Paste the iframe inside the .character-slot div below
+            (delete the .character-placeholder div first)
+        Alt: drop a transparent PNG into this folder and use
+             <img src="girl.png" alt="" class="character-img" />
+      -->
+      <div class="character-slot">
+        <div class="character-placeholder">
+          <svg viewBox="0 0 120 200" xmlns="http://www.w3.org/2000/svg" class="placeholder-svg" aria-hidden="true">
+            <!-- simple stick-figure silhouette of a girl pointing right -->
+            <circle cx="50" cy="32" r="18" fill="#e8b4a0" stroke="#2a2a2a" stroke-width="2"/>
+            <path d="M32 22 Q28 8 50 12 Q72 8 68 22 Q72 38 60 42 Q50 30 40 42 Q28 38 32 22 Z" fill="#3d2b1f" stroke="#2a2a2a" stroke-width="2"/>
+            <rect x="38" y="50" width="24" height="50" rx="6" fill="#e07856" stroke="#2a2a2a" stroke-width="2"/>
+            <path d="M62 60 L105 70 L108 78 L62 72 Z" fill="#e8b4a0" stroke="#2a2a2a" stroke-width="2"/>
+            <circle cx="108" cy="74" r="6" fill="#e8b4a0" stroke="#2a2a2a" stroke-width="2"/>
+            <path d="M38 60 L26 92 L34 96 L44 68 Z" fill="#e8b4a0" stroke="#2a2a2a" stroke-width="2"/>
+            <rect x="40" y="98" width="9" height="50" rx="3" fill="#6b9080" stroke="#2a2a2a" stroke-width="2"/>
+            <rect x="51" y="98" width="9" height="50" rx="3" fill="#6b9080" stroke="#2a2a2a" stroke-width="2"/>
+            <rect x="38" y="148" width="13" height="8" rx="2" fill="#2a2a2a"/>
+            <rect x="49" y="148" width="13" height="8" rx="2" fill="#2a2a2a"/>
+          </svg>
+          <p class="placeholder-note">drop your 3D girl here <span class="placeholder-arrow">↗</span></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT SIDE: title + tagline + CTA -->
+    <div class="hero-text">
+      <p class="kicker">welcome to your</p>
+      <h1 class="title">
+        <span class="title-word title-word-1">Scrap</span><span class="title-word title-word-2">book</span>
+        <span class="title-underline"></span>
+      </h1>
+      <p class="tagline">your places. your friends. your memories — all in one messy, beautiful place.</p>
+      <div class="cta-row">
+        <a href="#signup" class="btn btn-primary">start your scrapbook →</a>
+        <a href="#about" class="btn btn-ghost">how it works</a>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- "what's inside" feature row, styled as polaroids taped to the page -->
+  <section class="features" id="about">
+    <h2 class="section-title">what's inside <span class="squiggle">~</span></h2>
+
+    <div class="polaroid-row">
+
+      <article class="polaroid polaroid-1">
+        <div class="polaroid-photo polaroid-photo-1">
+          <span class="photo-emoji">📍</span>
+        </div>
+        <p class="polaroid-caption">add places you've been</p>
+        <p class="polaroid-meta">★★★★★ + your review</p>
+      </article>
+
+      <article class="polaroid polaroid-2">
+        <div class="polaroid-photo polaroid-photo-2">
+          <span class="photo-emoji">🗺️</span>
+        </div>
+        <p class="polaroid-caption">pin them on a map</p>
+        <p class="polaroid-meta">build your to-do list of spots</p>
+      </article>
+
+      <article class="polaroid polaroid-3">
+        <div class="polaroid-photo polaroid-photo-3">
+          <span class="photo-emoji">👯</span>
+        </div>
+        <p class="polaroid-caption">make groups with friends</p>
+        <p class="polaroid-meta">share recs, plan trips together</p>
+      </article>
+
+    </div>
+  </section>
+
+  <footer class="footer">
+    <p class="footer-note">made with washi tape & love · scrapbook ©  2026</p>
+  </footer>
+
+</body>
+</html>
