@@ -2,13 +2,13 @@
 
 import { Suspense, useState, useMemo } from "react";
 import { Canvas } from "@react-three/fiber";
-import { Text, OrbitControls, Environment } from "@react-three/drei";
+import { Text } from "@react-three/drei";
 import { useSpring, animated } from "@react-spring/three";
 import * as THREE from "three";
 
-const PAGE_W = 2.4;
-const PAGE_H = 3.2;
-const PAGE_GAP = 0.005;
+const PAGE_W = 3.6;
+const PAGE_H = 4.8;
+const PAGE_GAP = 0.008;
 
 export default function MemoriesBook({ places }) {
   // pageIndex: -1 = cover showing, 0..N-1 = showing places[pageIndex]
@@ -21,7 +21,7 @@ export default function MemoriesBook({ places }) {
   return (
     <div className="book-stage">
       <Canvas
-        camera={{ position: [0, 0, 6.5], fov: 42 }}
+        camera={{ position: [0, 0, 7], fov: 42 }}
         gl={{ antialias: true, alpha: true, toneMapping: THREE.NoToneMapping }}
         dpr={[1, 2]}
         flat
@@ -38,16 +38,6 @@ export default function MemoriesBook({ places }) {
             onTurnLeft={() => canPrev && setPageIndex(pageIndex - 1)}
           />
         </Suspense>
-
-        {/* gentle orbit so you can rotate the book a bit — disabled zoom */}
-        <OrbitControls
-          enableZoom={false}
-          enablePan={false}
-          maxPolarAngle={Math.PI / 1.8}
-          minPolarAngle={Math.PI / 2.8}
-          maxAzimuthAngle={Math.PI / 6}
-          minAzimuthAngle={-Math.PI / 6}
-        />
       </Canvas>
 
       {/* UI overlay */}
