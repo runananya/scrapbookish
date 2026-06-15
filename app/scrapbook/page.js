@@ -1,10 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
+
+const MemoriesBook = dynamic(() => import("@/components/MemoriesBook"), { ssr: false });
 
 export default function ScrapbookPage() {
   const router = useRouter();
@@ -132,7 +135,6 @@ export default function ScrapbookPage() {
       <header className="nav">
         <Link href="/" className="logo">scrapbook<span className="logo-dot">.</span></Link>
         <nav className="nav-links">
-          <Link href="/scrapbook/book" className="sticker sticker-yellow">📖 book</Link>
           <Link href="/scrapbook/map" className="sticker sticker-yellow">🗺️ map</Link>
           <Link href="/groups" className="sticker sticker-pink">👯 groups</Link>
           <Link href="/scrapbook/add" className="sticker sticker-sage">+ add a place</Link>
@@ -154,6 +156,12 @@ export default function ScrapbookPage() {
           </p>
         </header>
 
+        {places.length > 0 && (
+          <section className="scrap-book-section">
+            <MemoriesBook places={places} />
+          </section>
+        )}
+
         {recs.length > 0 && (
           <section className="recs-section">
             <h3 className="recs-section-title">✨ recommended for you</h3>
@@ -168,11 +176,14 @@ export default function ScrapbookPage() {
         {places.length === 0 ? (
           <EmptyState />
         ) : (
-          <div className="place-grid">
-            {places.map((p, i) => (
-              <PlaceCard key={p.id} place={p} index={i} onDelete={() => deletePlace(p)} />
-            ))}
-          </div>
+          <>
+            <h3 className="scrap-grid-title">all your places</h3>
+            <div className="place-grid">
+              {places.map((p, i) => (
+                <PlaceCard key={p.id} place={p} index={i} onDelete={() => deletePlace(p)} />
+              ))}
+            </div>
+          </>
         )}
       </main>
     </>

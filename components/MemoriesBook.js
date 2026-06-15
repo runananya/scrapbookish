@@ -22,15 +22,15 @@ export default function MemoriesBook({ places }) {
     <div className="book-stage">
       <Canvas
         camera={{ position: [0, 0, 6.5], fov: 42 }}
-        gl={{ antialias: true, alpha: true }}
+        gl={{ antialias: true, alpha: true, toneMapping: THREE.NoToneMapping }}
         dpr={[1, 2]}
+        flat
       >
-        <color attach="background" args={["#fde2cf"]} />
-        <ambientLight intensity={0.85} />
-        <directionalLight position={[3, 4, 6]} intensity={0.6} />
-        <directionalLight position={[-3, -2, 4]} intensity={0.25} />
+        <ambientLight intensity={1.1} />
+        <directionalLight position={[3, 4, 6]} intensity={0.5} />
+        <directionalLight position={[-3, -2, 4]} intensity={0.2} />
 
-        <Suspense fallback={null}>
+        <Suspense fallback={<DebugCube />}>
           <Book
             places={places}
             pageIndex={pageIndex}
@@ -63,6 +63,17 @@ export default function MemoriesBook({ places }) {
         </button>
       </div>
     </div>
+  );
+}
+
+function DebugCube() {
+  // shown while Suspense waits — if you see a coral cube, three.js works
+  // but something in the Book subtree is still loading.
+  return (
+    <mesh>
+      <boxGeometry args={[1, 1, 1]} />
+      <meshStandardMaterial color="#e07856" />
+    </mesh>
   );
 }
 
@@ -134,67 +145,128 @@ function BackCover() {
 }
 
 function CoverFace() {
+  const GOLD = "#e6c358";
+  const GOLD_DEEP = "#b8961f";
+  const LEATHER = "#3a2010";
+  const LEATHER_LIGHT = "#5a3018";
+
   return (
     <group>
-      {/* the kraft / leather cover */}
+      {/* base leather — deep rich brown */}
       <mesh>
         <planeGeometry args={[PAGE_W, PAGE_H]} />
-        <meshStandardMaterial color="#7a4a25" roughness={0.9} side={THREE.DoubleSide} />
-      </mesh>
-      {/* gold border */}
-      <mesh position={[0, 0, 0.001]}>
-        <planeGeometry args={[PAGE_W - 0.18, PAGE_H - 0.18]} />
-        <meshBasicMaterial color="#5a3a1f" />
-      </mesh>
-      <mesh position={[0, 0, 0.002]}>
-        <planeGeometry args={[PAGE_W - 0.22, PAGE_H - 0.22]} />
-        <meshStandardMaterial color="#7a4a25" roughness={0.9} />
+        <meshBasicMaterial color={LEATHER} toneMapped={false} side={THREE.DoubleSide} />
       </mesh>
 
-      {/* "Yours Truly" gold lettering */}
+      {/* outer gold band */}
+      <mesh position={[0, 0, 0.001]}>
+        <planeGeometry args={[PAGE_W - 0.12, PAGE_H - 0.12]} />
+        <meshBasicMaterial color={GOLD} toneMapped={false} />
+      </mesh>
+
+      {/* leather inset between two gold lines */}
+      <mesh position={[0, 0, 0.002]}>
+        <planeGeometry args={[PAGE_W - 0.16, PAGE_H - 0.16]} />
+        <meshBasicMaterial color={LEATHER_LIGHT} toneMapped={false} />
+      </mesh>
+
+      {/* inner gold thin line */}
+      <mesh position={[0, 0, 0.003]}>
+        <planeGeometry args={[PAGE_W - 0.26, PAGE_H - 0.26]} />
+        <meshBasicMaterial color={GOLD} toneMapped={false} />
+      </mesh>
+
+      {/* main inner panel where the title sits */}
+      <mesh position={[0, 0, 0.004]}>
+        <planeGeometry args={[PAGE_W - 0.30, PAGE_H - 0.30]} />
+        <meshBasicMaterial color={LEATHER_LIGHT} toneMapped={false} />
+      </mesh>
+
+      {/* corner gold diamonds */}
+      {[
+        [-(PAGE_W / 2) + 0.32, (PAGE_H / 2) - 0.32],
+        [ (PAGE_W / 2) - 0.32, (PAGE_H / 2) - 0.32],
+        [-(PAGE_W / 2) + 0.32, -(PAGE_H / 2) + 0.32],
+        [ (PAGE_W / 2) - 0.32, -(PAGE_H / 2) + 0.32],
+      ].map(([x, y], i) => (
+        <Text
+          key={`corner-${i}`}
+          position={[x, y, 0.005]}
+          fontSize={0.16}
+          color={GOLD}
+          anchorX="center"
+          anchorY="middle"
+          outlineWidth={0.004}
+          outlineColor={LEATHER}
+        >
+          ✦
+        </Text>
+      ))}
+
+      {/* "Yours" — big embossed gold */}
       <Text
-        position={[0, 0.4, 0.01]}
-        fontSize={0.32}
-        color="#d4af37"
+        position={[0, 0.7, 0.006]}
+        fontSize={0.46}
+        color={GOLD}
         anchorX="center"
         anchorY="middle"
-        font="https://fonts.gstatic.com/s/permanentmarker/v16/Fh4uPib9Iyv2ucM6pGQMWimMp004La2Cf5b6jlg.woff"
-        outlineWidth={0.008}
-        outlineColor="#3a2a17"
+        outlineWidth={0.018}
+        outlineColor={LEATHER}
+        letterSpacing={0.04}
       >
         Yours
       </Text>
+
+      {/* "Truly" */}
       <Text
-        position={[0, 0.0, 0.01]}
-        fontSize={0.32}
-        color="#d4af37"
+        position={[0, 0.15, 0.006]}
+        fontSize={0.46}
+        color={GOLD}
         anchorX="center"
         anchorY="middle"
-        font="https://fonts.gstatic.com/s/permanentmarker/v16/Fh4uPib9Iyv2ucM6pGQMWimMp004La2Cf5b6jlg.woff"
-        outlineWidth={0.008}
-        outlineColor="#3a2a17"
+        outlineWidth={0.018}
+        outlineColor={LEATHER}
+        letterSpacing={0.04}
       >
         Truly
       </Text>
+
+      {/* gold flourish divider */}
       <Text
-        position={[0, -0.5, 0.01]}
-        fontSize={0.09}
-        color="#d4af37"
+        position={[0, -0.32, 0.006]}
+        fontSize={0.18}
+        color={GOLD}
         anchorX="center"
         anchorY="middle"
         letterSpacing={0.3}
       >
-        — a scrapbook of places —
+        ✦ · ♡ · ✦
       </Text>
-      {/* small heart sticker */}
+
+      {/* subtitle */}
       <Text
-        position={[0, -1.0, 0.01]}
-        fontSize={0.22}
-        color="#d4af37"
+        position={[0, -0.62, 0.006]}
+        fontSize={0.075}
+        color={GOLD_DEEP}
         anchorX="center"
         anchorY="middle"
+        letterSpacing={0.35}
+        outlineWidth={0.001}
+        outlineColor={LEATHER}
       >
-        ♡
+        A SCRAPBOOK OF PLACES
+      </Text>
+
+      {/* bottom imprint stamp */}
+      <Text
+        position={[0, -1.18, 0.006]}
+        fontSize={0.065}
+        color={GOLD}
+        anchorX="center"
+        anchorY="middle"
+        letterSpacing={0.5}
+      >
+        — VOL. I · MMXXVI —
       </Text>
     </group>
   );
@@ -251,7 +323,6 @@ function MemoryFace({ place, index }) {
         anchorY="middle"
         maxWidth={PAGE_W * 0.85}
         textAlign="center"
-        font="https://fonts.gstatic.com/s/permanentmarker/v16/Fh4uPib9Iyv2ucM6pGQMWimMp004La2Cf5b6jlg.woff"
       >
         {place.name}
       </Text>
@@ -296,7 +367,6 @@ function MemoryFace({ place, index }) {
           maxWidth={PAGE_W * 0.82}
           lineHeight={1.4}
           textAlign="center"
-          font="https://fonts.gstatic.com/s/caveat/v18/WnznHAc5bAfYB2QRah7pcpNvOx-pjcB9eg.woff"
         >
           {`"${reviewLines}"`}
         </Text>
