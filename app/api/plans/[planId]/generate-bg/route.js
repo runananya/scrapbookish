@@ -25,25 +25,27 @@ export async function POST(req, { params }) {
   try { body = await req.json(); } catch {}
   const extraPromptHint = (body.hint || "").toString().slice(0, 200) || null;
 
-  // 1. Call Gemini to generate the image (returns base64)
-  let aiImage;
+  // 1. Build the Pollinations URL (the request triggers generation)
+  let aiImageUrl;
   try {
-    aiImage = await generateBackground({ extraPromptHint });
+    aiImageUrl = await generateBackground({ extraPromptHint });
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 
-  // 2. Upload to Supabase storage so the URL is stable
+  // 2. Fetch the generated image and re-upload to Supabase storage so the
+  //    URL is stable and we don't depend on Pollinations forever
   let publicUrl;
   try {
-    const buffer = Buffer.from(aiImage.base64, "base64");
-    const ext = aiImage.contentType.includes("jpeg") ? "jpg" : "png";
-    const path = `${user.id}/plan-bg-${planId}-${Date.now()}.${ext}`;
+    const imgRes = await fetch(aiImageUrl, { signal: AbortSignal.timeout(60_000) });
+    if (!imgRes.ok) throw new Error(`pollinations fetch failed: ${imgRes.status}`);
+    const arrayBuf = await imgRes.arrayBuffer();
+    const path = `${user.id}/plan-bg-${planId}-${Date.now()}.png`;
     const { error: upErr } = await supabase
       .storage
       .from("place-photos")
-      .upload(path, buffer, {
-        contentType: aiImage.contentType,
+      .upload(path, new Uint8Array(arrayBuf), {
+        contentType: "image/png",
         cacheControl: "3600",
         upsert: false,
       });
@@ -51,7 +53,7 @@ export async function POST(req, { params }) {
     const { data: urlData } = supabase.storage.from("place-photos").getPublicUrl(path);
     publicUrl = urlData.publicUrl;
   } catch (err) {
-    return NextResponse.json({ error: `storage upload failed: ${err.message}` }, { status: 500 });
+    return NextResponse.json({ error: `image fetch/upload failed: ${err.message}` }, { status: 500 });
   }
 
   // 3. Save URL onto the plan
