@@ -158,7 +158,7 @@ export default function ScrapbookPage() {
 
         {places.length > 0 && (
           <section className="scrap-book-section">
-            <MemoriesBook places={places} />
+            <MemoriesBook places={places} editable />
           </section>
         )}
 

@@ -1,10 +1,15 @@
 "use client";
 
-import { Suspense, useState, useMemo, useEffect } from "react";
+import { Suspense, useState, useMemo, useEffect, useRef } from "react";
 import { Canvas } from "@react-three/fiber";
 import { Text } from "@react-three/drei";
 import { useSpring, animated } from "@react-spring/three";
 import * as THREE from "three";
+import { createClient } from "@/lib/supabase/client";
+
+const EMOJI_PALETTE = ["♥", "♡", "★", "✦", "✨", "🌸", "🌟", "🌷", "💕", "💫", "🎀", "🌙"];
+let _decoIdCounter = 0;
+const newDecoId = () => `bd${Date.now()}-${_decoIdCounter++}`;
 
 // Convert 2D-stored decorations to 3D world coords on a page
 function decorationToWorld(dec) {
@@ -80,13 +85,106 @@ function getNotebookTexture() {
   return tex;
 }
 
-export default function MemoriesBook({ places }) {
+export default function MemoriesBook({ places: initialPlaces, editable = false }) {
   // pageIndex: -1 = cover showing, 0..N-1 = showing places[pageIndex]
   const [pageIndex, setPageIndex] = useState(-1);
+  const [places, setPlaces] = useState(initialPlaces);
+  const [editing, setEditing] = useState(false);
+  const [dirty, setDirty] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const originalDecorationsRef = useRef({}); // placeId → original decorations (for cancel)
+
+  useEffect(() => { setPlaces(initialPlaces); }, [initialPlaces]);
 
   const total = places.length;
-  const canNext = pageIndex < total - 1;
-  const canPrev = pageIndex > -1;
+  const canNext = pageIndex < total - 1 && !editing;
+  const canPrev = pageIndex > -1 && !editing;
+  const canEdit = editable && pageIndex >= 0;
+  const currentPlace = pageIndex >= 0 ? places[pageIndex] : null;
+
+  function updateCurrentDecorations(updater) {
+    if (pageIndex < 0) return;
+    setPlaces((arr) => arr.map((p, i) =>
+      i === pageIndex ? { ...p, decorations: updater(p.decorations || []) } : p
+    ));
+    setDirty(true);
+  }
+
+  function startEditing() {
+    if (!canEdit) return;
+    originalDecorationsRef.current[currentPlace.id] = currentPlace.decorations || [];
+    setEditing(true);
+    setDirty(false);
+  }
+
+  function cancelEditing() {
+    if (pageIndex < 0) { setEditing(false); return; }
+    const placeId = currentPlace.id;
+    const original = originalDecorationsRef.current[placeId];
+    if (original !== undefined) {
+      setPlaces((arr) => arr.map((p, i) => i === pageIndex ? { ...p, decorations: original } : p));
+    }
+    setEditing(false);
+    setDirty(false);
+  }
+
+  async function saveEditing() {
+    if (pageIndex < 0) return;
+    setSaving(true);
+    const supabase = createClient();
+    const { error } = await supabase
+      .from("places")
+      .update({ decorations: currentPlace.decorations || [] })
+      .eq("id", currentPlace.id);
+    setSaving(false);
+    if (error) {
+      alert(error.message);
+      return;
+    }
+    delete originalDecorationsRef.current[currentPlace.id];
+    setEditing(false);
+    setDirty(false);
+  }
+
+  function addEmojiSticker(emoji) {
+    updateCurrentDecorations((decs) => [
+      ...decs,
+      {
+        id: newDecoId(),
+        type: "sticker",
+        emoji,
+        x: 50,
+        y: 50,
+        rotation: Math.floor(Math.random() * 30) - 15,
+        size: 56,
+      },
+    ]);
+  }
+
+  function addText() {
+    const content = window.prompt("what should it say?", "✨ a memory ✨");
+    if (!content || !content.trim()) return;
+    updateCurrentDecorations((decs) => [
+      ...decs,
+      {
+        id: newDecoId(),
+        type: "text",
+        content: content.trim(),
+        x: 50,
+        y: 50,
+        rotation: Math.floor(Math.random() * 16) - 8,
+        size: 32,
+        color: "#e07856",
+      },
+    ]);
+  }
+
+  function moveDecoration(decId, x, y) {
+    updateCurrentDecorations((decs) => decs.map((d) => d.id === decId ? { ...d, x, y } : d));
+  }
+  function removeDecoration(decId) {
+    updateCurrentDecorations((decs) => decs.filter((d) => d.id !== decId));
+  }
 
   return (
     <div className="book-stage">
@@ -107,25 +205,54 @@ export default function MemoriesBook({ places }) {
             <Book
               places={places}
               pageIndex={pageIndex}
+              editing={editing}
               onTurnRight={() => canNext && setPageIndex(pageIndex + 1)}
               onTurnLeft={() => canPrev && setPageIndex(pageIndex - 1)}
+              onMoveDecoration={moveDecoration}
+              onRemoveDecoration={removeDecoration}
             />
           </group>
         </Suspense>
       </Canvas>
 
       {/* UI overlay */}
-      <div className="book-controls">
-        <button onClick={() => canPrev && setPageIndex(pageIndex - 1)} disabled={!canPrev}>
-          ← prev
-        </button>
-        <span className="book-counter">
-          {pageIndex === -1 ? "cover" : `memory ${pageIndex + 1} / ${total}`}
-        </span>
-        <button onClick={() => canNext && setPageIndex(pageIndex + 1)} disabled={!canNext}>
-          next →
-        </button>
-      </div>
+      {!editing ? (
+        <div className="book-controls">
+          <button onClick={() => canPrev && setPageIndex(pageIndex - 1)} disabled={!canPrev}>
+            ← prev
+          </button>
+          <span className="book-counter">
+            {pageIndex === -1 ? "cover" : `memory ${pageIndex + 1} / ${total}`}
+          </span>
+          <button onClick={() => canNext && setPageIndex(pageIndex + 1)} disabled={!canNext}>
+            next →
+          </button>
+          {canEdit && (
+            <button onClick={startEditing} className="book-edit-btn">
+              ✏️ decorate
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="book-palette">
+          <p className="book-palette-title">decorate page {pageIndex + 1}</p>
+          <div className="book-palette-row">
+            {EMOJI_PALETTE.map((e) => (
+              <button key={e} onClick={() => addEmojiSticker(e)} className="book-palette-emoji">{e}</button>
+            ))}
+          </div>
+          <div className="book-palette-row">
+            <button onClick={addText} className="btn btn-ghost book-palette-text-btn">📝 add text</button>
+          </div>
+          <p className="book-palette-hint">drag stickers on the page · double-click to remove</p>
+          <div className="book-palette-actions">
+            <button onClick={saveEditing} disabled={saving || !dirty} className="btn btn-primary">
+              {saving ? "saving…" : dirty ? "✓ save" : "saved"}
+            </button>
+            <button onClick={cancelEditing} className="btn btn-ghost">cancel</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -141,15 +268,15 @@ function DebugCube() {
   );
 }
 
-function Book({ places, pageIndex, onTurnRight, onTurnLeft }) {
+function Book({ places, pageIndex, editing, onTurnRight, onTurnLeft, onMoveDecoration, onRemoveDecoration }) {
   return (
     <group>
       {/* cover (flippable like a page) — sits on top of the stack */}
       <FlipPage
         flipped={pageIndex > -1}
         z={(places.length + 1) * PAGE_GAP}
-        onClickFront={onTurnRight}
-        onClickBack={onTurnLeft}
+        onClickFront={editing ? null : onTurnRight}
+        onClickBack={editing ? null : onTurnLeft}
       >
         <CoverFace />
       </FlipPage>
@@ -160,10 +287,16 @@ function Book({ places, pageIndex, onTurnRight, onTurnLeft }) {
           key={place.id}
           flipped={i < pageIndex}
           z={(places.length - i) * PAGE_GAP}
-          onClickFront={onTurnRight}
-          onClickBack={onTurnLeft}
+          onClickFront={editing ? null : onTurnRight}
+          onClickBack={editing ? null : onTurnLeft}
         >
-          <MemoryFace place={place} index={i} />
+          <MemoryFace
+            place={place}
+            index={i}
+            editing={editing && i === pageIndex}
+            onMoveDecoration={onMoveDecoration}
+            onRemoveDecoration={onRemoveDecoration}
+          />
         </FlipPage>
       ))}
     </group>
@@ -180,15 +313,19 @@ function FlipPage({ flipped, z, children, onClickFront, onClickBack }) {
       {/* offset content to the right so left edge of the page is the spine */}
       <group position={[PAGE_W / 2, 0, 0]}>
         {children}
-        {/* invisible click hitboxes — front and back of the page */}
-        <mesh position={[0, 0, 0.001]} onClick={(e) => { e.stopPropagation(); onClickFront(); }}>
-          <planeGeometry args={[PAGE_W, PAGE_H]} />
-          <meshBasicMaterial transparent opacity={0} />
-        </mesh>
-        <mesh position={[0, 0, -0.001]} rotation={[0, Math.PI, 0]} onClick={(e) => { e.stopPropagation(); onClickBack(); }}>
-          <planeGeometry args={[PAGE_W, PAGE_H]} />
-          <meshBasicMaterial transparent opacity={0} />
-        </mesh>
+        {/* invisible click hitboxes — disabled when editing so decorations capture clicks instead */}
+        {onClickFront && (
+          <mesh position={[0, 0, 0.001]} onClick={(e) => { e.stopPropagation(); onClickFront(); }}>
+            <planeGeometry args={[PAGE_W, PAGE_H]} />
+            <meshBasicMaterial transparent opacity={0} />
+          </mesh>
+        )}
+        {onClickBack && (
+          <mesh position={[0, 0, -0.001]} rotation={[0, Math.PI, 0]} onClick={(e) => { e.stopPropagation(); onClickBack(); }}>
+            <planeGeometry args={[PAGE_W, PAGE_H]} />
+            <meshBasicMaterial transparent opacity={0} />
+          </mesh>
+        )}
       </group>
     </animated.group>
   );
@@ -322,7 +459,7 @@ function CoverFace() {
   );
 }
 
-function MemoryFace({ place, index }) {
+function MemoryFace({ place, index, editing, onMoveDecoration, onRemoveDecoration }) {
   const stars = place.rating > 0 ? "★".repeat(place.rating) + "☆".repeat(5 - place.rating) : "";
   const reviewLines = useMemo(() => {
     const r = (place.review || "").trim();
@@ -431,45 +568,103 @@ function MemoryFace({ place, index }) {
 
       {/* user-added decorations: stickers + text overlays */}
       {Array.isArray(place.decorations) && place.decorations.map((dec) => (
-        <DecorationOnPage key={dec.id} decoration={dec} />
+        <DecorationOnPage
+          key={dec.id}
+          decoration={dec}
+          editing={editing}
+          onMove={(x, y) => onMoveDecoration(dec.id, x, y)}
+          onRemove={() => onRemoveDecoration(dec.id)}
+        />
       ))}
     </group>
   );
 }
 
-function DecorationOnPage({ decoration }) {
+function DecorationOnPage({ decoration, editing, onMove, onRemove }) {
   const { x, y, size, rotation } = decorationToWorld(decoration);
-  const Z = 0.02; // above all page content
+  const Z = 0.025; // above all page content
+  const [hovered, setHovered] = useState(false);
+  const dragStateRef = useRef({ dragging: false });
 
-  // text or emoji sticker → drei <Text>
-  if (decoration.type === "text" || (decoration.type === "sticker" && !decoration.imageUrl)) {
-    const isText = decoration.type === "text";
-    return (
-      <Text
-        position={[x, y, Z]}
-        rotation={[0, 0, rotation]}
-        fontSize={size}
-        color={isText ? (decoration.color || "#e07856") : "#000000"}
-        anchorX="center"
-        anchorY="middle"
-        outlineWidth={isText ? size * 0.02 : 0}
-        outlineColor="#fffdf7"
-        outlineBlur={isText ? size * 0.04 : 0}
-      >
-        {isText ? decoration.content : decoration.emoji}
-      </Text>
-    );
+  function onPointerDown(e) {
+    if (!editing) return;
+    e.stopPropagation();
+    e.target.setPointerCapture?.(e.pointerId);
+    dragStateRef.current.dragging = true;
+  }
+  function onPointerMove(e) {
+    if (!editing || !dragStateRef.current.dragging) return;
+    e.stopPropagation();
+    // e.point is world-space intersection (with the hitbox plane)
+    // page is at world origin (book is centered via outer group offset)
+    const xPct = (e.point.x / PAGE_W + 0.5) * 100;
+    const yPct = (-e.point.y / PAGE_H + 0.5) * 100;
+    onMove(Math.max(2, Math.min(98, xPct)), Math.max(2, Math.min(98, yPct)));
+  }
+  function onPointerUp(e) {
+    if (!editing) return;
+    e.target.releasePointerCapture?.(e.pointerId);
+    dragStateRef.current.dragging = false;
+  }
+  function onDoubleClick(e) {
+    if (!editing) return;
+    e.stopPropagation();
+    if (window.confirm(`remove this ${decoration.type}?`)) onRemove();
   }
 
-  // image sticker (cropped dataURL / image URL)
-  if (decoration.type === "sticker" && decoration.imageUrl) {
-    return <ImageStickerOnPage url={decoration.imageUrl} x={x} y={y} size={size} rotation={rotation} z={Z} />;
-  }
+  // hitbox size — generous so emojis/text are easy to grab
+  const hit = Math.max(size * 1.6, 0.35);
 
-  return null;
+  const isImage = decoration.type === "sticker" && decoration.imageUrl;
+  const isEmoji = decoration.type === "sticker" && !decoration.imageUrl;
+  const isText  = decoration.type === "text";
+
+  return (
+    <group position={[x, y, Z]} rotation={[0, 0, rotation]}>
+      {/* invisible drag-and-double-click hitbox (only mounted in edit mode) */}
+      {editing && (
+        <mesh
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onDoubleClick={onDoubleClick}
+          onPointerOver={() => setHovered(true)}
+          onPointerOut={() => setHovered(false)}
+        >
+          <planeGeometry args={[hit, hit]} />
+          <meshBasicMaterial
+            color={hovered ? "#e07856" : "#000000"}
+            transparent
+            opacity={hovered ? 0.18 : 0.001}
+            depthWrite={false}
+          />
+        </mesh>
+      )}
+
+      {isEmoji && (
+        <Text fontSize={size} color="#000000" anchorX="center" anchorY="middle">
+          {decoration.emoji}
+        </Text>
+      )}
+      {isText && (
+        <Text
+          fontSize={size}
+          color={decoration.color || "#e07856"}
+          anchorX="center"
+          anchorY="middle"
+          outlineWidth={size * 0.02}
+          outlineColor="#fffdf7"
+          outlineBlur={size * 0.04}
+        >
+          {decoration.content}
+        </Text>
+      )}
+      {isImage && <ImageStickerMesh url={decoration.imageUrl} size={size} />}
+    </group>
+  );
 }
 
-function ImageStickerOnPage({ url, x, y, size, rotation, z }) {
+function ImageStickerMesh({ url, size }) {
   const [texture, setTexture] = useState(null);
   const [aspect, setAspect] = useState(1);
 
@@ -485,23 +680,21 @@ function ImageStickerOnPage({ url, x, y, size, rotation, z }) {
       setTexture(tex);
       setAspect(img.width / Math.max(1, img.height));
     };
-    img.onerror = () => { if (!cancelled) setTexture(null); };
     img.src = url;
     return () => { cancelled = true; };
   }, [url]);
 
   if (!texture) return null;
-
-  const width = size;
-  const height = size / aspect;
-
+  const w = size;
+  const h = size / aspect;
   return (
-    <mesh position={[x, y, z]} rotation={[0, 0, rotation]}>
-      <planeGeometry args={[width, height]} />
+    <mesh>
+      <planeGeometry args={[w, h]} />
       <meshBasicMaterial map={texture} transparent toneMapped={false} />
     </mesh>
   );
 }
+
 
 function PhotoMesh({ url }) {
   // Load texture client-side, gracefully fail if blocked by CORS
