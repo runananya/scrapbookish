@@ -489,7 +489,7 @@ function MemoryFace({ place, index, editing, onMoveDecoration, onRemoveDecoratio
 
       {/* page number top-right */}
       <Text
-        position={[PAGE_W / 2 - 0.15, PAGE_H / 2 - 0.15, 0.01]}
+        position={[PAGE_W / 2 - 0.18, PAGE_H / 2 - 0.18, 0.01]}
         fontSize={0.08}
         color="#8a7259"
         anchorX="right"
@@ -498,20 +498,17 @@ function MemoryFace({ place, index, editing, onMoveDecoration, onRemoveDecoratio
         — {index + 1} —
       </Text>
 
-      {/* the photo area */}
+      {/* polaroid photo (top half of page) */}
       {pageImageUrl ? (
-        <PhotoMesh url={pageImageUrl} />
+        <PhotoPolaroid url={pageImageUrl} />
       ) : (
-        <mesh position={[0, 0.7, 0.01]}>
-          <planeGeometry args={[PAGE_W * 0.78, PAGE_H * 0.4]} />
-          <meshBasicMaterial color="#f7c8a9" />
-        </mesh>
+        <PhotoPlaceholder />
       )}
 
       {/* name */}
       <Text
-        position={[0, -0.25, 0.008]}
-        fontSize={0.18}
+        position={[0, -0.05, 0.012]}
+        fontSize={0.22}
         color="#2a2a2a"
         anchorX="center"
         anchorY="middle"
@@ -524,9 +521,9 @@ function MemoryFace({ place, index, editing, onMoveDecoration, onRemoveDecoratio
       {/* location */}
       {place.location && (
         <Text
-          position={[0, -0.5, 0.008]}
-          fontSize={0.08}
-          color="#6a4f3e"
+          position={[0, -0.42, 0.012]}
+          fontSize={0.09}
+          color="#5a4a3a"
           anchorX="center"
           anchorY="middle"
           maxWidth={PAGE_W * 0.85}
@@ -539,8 +536,8 @@ function MemoryFace({ place, index, editing, onMoveDecoration, onRemoveDecoratio
       {/* stars */}
       {stars && (
         <Text
-          position={[0, -0.7, 0.008]}
-          fontSize={0.13}
+          position={[0, -0.68, 0.012]}
+          fontSize={0.14}
           color="#f4b400"
           anchorX="center"
           anchorY="middle"
@@ -553,13 +550,13 @@ function MemoryFace({ place, index, editing, onMoveDecoration, onRemoveDecoratio
       {/* review */}
       {reviewLines && (
         <Text
-          position={[0, -1.05, 0.008]}
-          fontSize={0.082}
-          color="#3a2a17"
+          position={[0, -1.05, 0.012]}
+          fontSize={0.085}
+          color="#2a2a2a"
           anchorX="center"
           anchorY="top"
           maxWidth={PAGE_W * 0.82}
-          lineHeight={1.4}
+          lineHeight={1.45}
           textAlign="center"
         >
           {`"${reviewLines}"`}
@@ -696,18 +693,85 @@ function ImageStickerMesh({ url, size }) {
 }
 
 
-function PhotoMesh({ url }) {
-  // Load texture client-side, gracefully fail if blocked by CORS
-  const texture = useMemo(() => {
-    const loader = new THREE.TextureLoader();
-    loader.setCrossOrigin("anonymous");
-    return loader.load(url);
+// Polaroid-style photo: preserves aspect ratio, white border, tape strip
+function PhotoPolaroid({ url }) {
+  const [texture, setTexture] = useState(null);
+  const [aspect, setAspect] = useState(1);
+
+  useEffect(() => {
+    let cancelled = false;
+    const img = new window.Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      if (cancelled) return;
+      const tex = new THREE.Texture(img);
+      tex.needsUpdate = true;
+      tex.colorSpace = THREE.SRGBColorSpace;
+      setTexture(tex);
+      setAspect(img.width / Math.max(1, img.height));
+    };
+    img.src = url;
+    return () => { cancelled = true; };
   }, [url]);
 
+  // fit inside a 2.0 wide × 1.4 tall envelope, preserving aspect
+  const ENV_W = 2.0;
+  const ENV_H = 1.4;
+  let w, h;
+  if (aspect > ENV_W / ENV_H) {
+    w = ENV_W;
+    h = ENV_W / aspect;
+  } else {
+    h = ENV_H;
+    w = ENV_H * aspect;
+  }
+
+  const borderSide = 0.09;
+  const borderTop = 0.09;
+  const borderBottom = 0.22;
+
   return (
-    <mesh position={[0, 0.7, 0.01]}>
-      <planeGeometry args={[PAGE_W * 0.78, PAGE_H * 0.4]} />
-      <meshBasicMaterial map={texture} toneMapped={false} />
-    </mesh>
+    <group position={[0, 1.15, 0.012]} rotation={[0, 0, -0.04]}>
+      {/* white polaroid backing */}
+      <mesh position={[0, (borderTop - borderBottom) / 2, 0]}>
+        <planeGeometry args={[w + borderSide * 2, h + borderTop + borderBottom]} />
+        <meshBasicMaterial color="#fffdf7" toneMapped={false} />
+      </mesh>
+      {/* drop-shadow approximation: dark slightly larger plane just behind */}
+      <mesh position={[0.03, (borderTop - borderBottom) / 2 - 0.03, -0.002]}>
+        <planeGeometry args={[w + borderSide * 2 + 0.04, h + borderTop + borderBottom + 0.04]} />
+        <meshBasicMaterial color="#000000" transparent opacity={0.18} toneMapped={false} />
+      </mesh>
+      {/* the photo */}
+      {texture && (
+        <mesh position={[0, 0, 0.001]}>
+          <planeGeometry args={[w, h]} />
+          <meshBasicMaterial map={texture} toneMapped={false} />
+        </mesh>
+      )}
+      {/* washi tape strip at top */}
+      <mesh position={[0, h / 2 + borderTop + 0.04, 0.003]} rotation={[0, 0, -0.12]}>
+        <planeGeometry args={[0.75, 0.16]} />
+        <meshBasicMaterial color="#f7c5cc" transparent opacity={0.88} toneMapped={false} />
+      </mesh>
+    </group>
+  );
+}
+
+function PhotoPlaceholder() {
+  return (
+    <group position={[0, 1.15, 0.012]} rotation={[0, 0, -0.04]}>
+      <mesh>
+        <planeGeometry args={[2.0, 1.5]} />
+        <meshBasicMaterial color="#fffdf7" toneMapped={false} />
+      </mesh>
+      <mesh position={[0, 0, 0.001]}>
+        <planeGeometry args={[1.84, 1.34]} />
+        <meshBasicMaterial color="#f7c8a9" toneMapped={false} />
+      </mesh>
+      <Text position={[0, 0, 0.002]} fontSize={0.45} color="#fffdf7" anchorX="center" anchorY="middle">
+        📷
+      </Text>
+    </group>
   );
 }
