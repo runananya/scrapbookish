@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { AnimatePresence } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
 import RecommendModal from "@/components/RecommendModal";
+import DecorationLayer from "@/components/DecorationLayer";
 
 const PlacesMap = dynamic(() => import("@/components/PlacesMap"), { ssr: false });
 
@@ -87,7 +88,7 @@ export default function PlaceDetailPage() {
         </nav>
       </header>
 
-      <main className="place-detail">
+      <main className="place-detail place-detail-decoratable">
         <header className="place-detail-header">
           <span className={`place-status place-detail-status ${meta.cls}`}>{meta.label}</span>
           <h1 className="place-detail-name">{place.name}</h1>
@@ -147,6 +148,8 @@ export default function PlaceDetailPage() {
           )}
           {recSentMsg && <p className="auth-msg success">{recSentMsg}</p>}
         </div>
+
+        <DecorationLayer place={place} isOwner={isMine} />
       </main>
 
       <AnimatePresence>
