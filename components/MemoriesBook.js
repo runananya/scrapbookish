@@ -1,10 +1,20 @@
 "use client";
 
-import { Suspense, useState, useMemo } from "react";
+import { Suspense, useState, useMemo, useEffect } from "react";
 import { Canvas } from "@react-three/fiber";
 import { Text } from "@react-three/drei";
 import { useSpring, animated } from "@react-spring/three";
 import * as THREE from "three";
+
+// Convert 2D-stored decorations to 3D world coords on a page
+function decorationToWorld(dec) {
+  return {
+    x: (dec.x / 100 - 0.5) * PAGE_W,
+    y: -(dec.y / 100 - 0.5) * PAGE_H,
+    size: dec.size / 200, // px → world units (calibrated so 120px ≈ 0.6 world)
+    rotation: -((dec.rotation || 0) * Math.PI) / 180, // CSS clockwise → Three CCW
+  };
+}
 
 const PAGE_W = 3.6;
 const PAGE_H = 4.8;
@@ -418,7 +428,78 @@ function MemoryFace({ place, index }) {
           {`"${reviewLines}"`}
         </Text>
       )}
+
+      {/* user-added decorations: stickers + text overlays */}
+      {Array.isArray(place.decorations) && place.decorations.map((dec) => (
+        <DecorationOnPage key={dec.id} decoration={dec} />
+      ))}
     </group>
+  );
+}
+
+function DecorationOnPage({ decoration }) {
+  const { x, y, size, rotation } = decorationToWorld(decoration);
+  const Z = 0.02; // above all page content
+
+  // text or emoji sticker → drei <Text>
+  if (decoration.type === "text" || (decoration.type === "sticker" && !decoration.imageUrl)) {
+    const isText = decoration.type === "text";
+    return (
+      <Text
+        position={[x, y, Z]}
+        rotation={[0, 0, rotation]}
+        fontSize={size}
+        color={isText ? (decoration.color || "#e07856") : "#000000"}
+        anchorX="center"
+        anchorY="middle"
+        outlineWidth={isText ? size * 0.02 : 0}
+        outlineColor="#fffdf7"
+        outlineBlur={isText ? size * 0.04 : 0}
+      >
+        {isText ? decoration.content : decoration.emoji}
+      </Text>
+    );
+  }
+
+  // image sticker (cropped dataURL / image URL)
+  if (decoration.type === "sticker" && decoration.imageUrl) {
+    return <ImageStickerOnPage url={decoration.imageUrl} x={x} y={y} size={size} rotation={rotation} z={Z} />;
+  }
+
+  return null;
+}
+
+function ImageStickerOnPage({ url, x, y, size, rotation, z }) {
+  const [texture, setTexture] = useState(null);
+  const [aspect, setAspect] = useState(1);
+
+  useEffect(() => {
+    let cancelled = false;
+    const img = new window.Image();
+    if (!url.startsWith("data:")) img.crossOrigin = "anonymous";
+    img.onload = () => {
+      if (cancelled) return;
+      const tex = new THREE.Texture(img);
+      tex.needsUpdate = true;
+      tex.colorSpace = THREE.SRGBColorSpace;
+      setTexture(tex);
+      setAspect(img.width / Math.max(1, img.height));
+    };
+    img.onerror = () => { if (!cancelled) setTexture(null); };
+    img.src = url;
+    return () => { cancelled = true; };
+  }, [url]);
+
+  if (!texture) return null;
+
+  const width = size;
+  const height = size / aspect;
+
+  return (
+    <mesh position={[x, y, z]} rotation={[0, 0, rotation]}>
+      <planeGeometry args={[width, height]} />
+      <meshBasicMaterial map={texture} transparent toneMapped={false} />
+    </mesh>
   );
 }
 
