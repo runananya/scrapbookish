@@ -18,6 +18,8 @@ export default function ScrapbookPage() {
   const [places, setPlaces] = useState([]);
   const [recs, setRecs] = useState([]); // pending recs with joined place + sender name
   const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState("all");
+  const [query, setQuery] = useState("");
 
   useEffect(() => { load(); }, []); // eslint-disable-line
 
@@ -114,7 +116,25 @@ export default function ScrapbookPage() {
     return <main className="auth-wrap"><p className="auth-sub">loading your scrapbook…</p></main>;
   }
 
-  const name = user.user_metadata?.display_name || user.email?.split("@")[0] || "friend";
+  const name = profile?.display_name || user.user_metadata?.display_name || user.email?.split("@")[0] || "friend";
+
+  // Filter places by search + status
+  const q = query.trim().toLowerCase();
+  const filteredPlaces = places.filter((p) => {
+    if (filter !== "all" && p.status !== filter) return false;
+    if (q) {
+      const haystack = `${p.name || ""} ${p.location || ""} ${p.review || ""}`.toLowerCase();
+      if (!haystack.includes(q)) return false;
+    }
+    return true;
+  });
+
+  const stats = {
+    total: places.length,
+    visited: places.filter((p) => p.status === "visited").length,
+    wishlist: places.filter((p) => p.status === "wishlist").length,
+    recommended: places.filter((p) => p.status === "recommended").length,
+  };
 
   return (
     <>
@@ -161,6 +181,8 @@ export default function ScrapbookPage() {
           </p>
         </header>
 
+        {places.length > 0 && <StatsStrip stats={stats} />}
+
         {user && <FriendsFeed currentUserId={user.id} />}
 
         {places.length > 0 && (
@@ -185,16 +207,100 @@ export default function ScrapbookPage() {
         ) : (
           <>
             <h3 className="scrap-grid-title">all your places</h3>
-            <div className="place-grid">
-              {places.map((p, i) => (
-                <PlaceCard key={p.id} place={p} index={i} onDelete={() => deletePlace(p)} />
-              ))}
-            </div>
+            <PlacesFilter
+              filter={filter}
+              setFilter={setFilter}
+              query={query}
+              setQuery={setQuery}
+              counts={stats}
+              shown={filteredPlaces.length}
+            />
+            {filteredPlaces.length === 0 ? (
+              <div className="filter-empty">
+                <p className="empty-emoji" style={{ fontSize: 50 }}>🔍</p>
+                <p className="empty-sub">no places match that filter</p>
+                <button onClick={() => { setFilter("all"); setQuery(""); }} className="btn btn-ghost">
+                  clear filters
+                </button>
+              </div>
+            ) : (
+              <div className="place-grid">
+                {filteredPlaces.map((p, i) => (
+                  <PlaceCard key={p.id} place={p} index={i} onDelete={() => deletePlace(p)} />
+                ))}
+              </div>
+            )}
           </>
         )}
       </main>
     </>
   );
+}
+
+function StatsStrip({ stats }) {
+  const items = [
+    { key: "total",       label: "memories",   count: stats.total,       tape: "yellow" },
+    { key: "visited",     label: "been there", count: stats.visited,     tape: "sage" },
+    { key: "wishlist",    label: "want to go", count: stats.wishlist,    tape: "pink" },
+    { key: "recommended", label: "recommend",  count: stats.recommended, tape: "coral" },
+  ];
+  const tilts = [-2, 1.5, -1.5, 2];
+  return (
+    <div className="stats-strip">
+      {items.map((s, i) => (
+        <div key={s.key} className={`stat-chip stat-chip-${s.tape}`} style={{ transform: `rotate(${tilts[i]}deg)` }}>
+          <span className={`stat-tape stat-tape-${s.tape}`} />
+          <span className="stat-num">{s.count}</span>
+          <span className="stat-label">{s.label}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+const FILTER_OPTIONS = [
+  { id: "all",         label: "all"          },
+  { id: "visited",     label: "been there ✓" },
+  { id: "wishlist",    label: "want to go +" },
+  { id: "recommended", label: "recommend ★"  },
+];
+
+function PlacesFilter({ filter, setFilter, query, setQuery, counts, shown }) {
+  const total = filter === "all" ? counts.total : counts[filter] ?? 0;
+  return (
+    <div className="places-filter">
+      <input
+        type="search"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="🔍 search by name, location, or review…"
+        className="places-search"
+      />
+      <div className="places-filter-row">
+        {FILTER_OPTIONS.map((f) => (
+          <button
+            key={f.id}
+            type="button"
+            onClick={() => setFilter(f.id)}
+            className={`sticker ${filterStickerColor(f.id)} ${filter === f.id ? "sticker-active" : ""}`}
+          >
+            {f.label}
+          </button>
+        ))}
+        <span className="places-filter-count">
+          {shown === total ? `${shown}` : `${shown} of ${total}`} shown
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function filterStickerColor(id) {
+  if (id === "all")         return "sticker-yellow";
+  if (id === "visited")     return "sticker-sage";
+  if (id === "wishlist")    return "sticker-pink";
+  if (id === "recommended") return "sticker-coral";
+  return "sticker-pink";
 }
 
 function RecCard({ rec, onAdd, onDismiss }) {
