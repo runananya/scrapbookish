@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
+import Avatar from "@/components/Avatar";
 
 const MemoriesBook = dynamic(() => import("@/components/MemoriesBook"), { ssr: false });
 
@@ -76,7 +77,10 @@ export default function ProfilePage() {
       </header>
 
       <main className="scrap-main">
-        <header className="scrap-header">
+        <header className="scrap-header" style={{ textAlign: "center" }}>
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: 16 }}>
+            <Avatar profile={profile} size={88} />
+          </div>
           <p className="kicker">you&apos;re peeking into</p>
           <p className="possessive">{displayName}&apos;s</p>
           <h2 className="scrap-section-title">memory box</h2>

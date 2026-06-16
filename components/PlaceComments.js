@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import Avatar from "./Avatar";
 
 export default function PlaceComments({ placeId, currentUserId }) {
   const [comments, setComments] = useState([]);
@@ -21,15 +22,18 @@ export default function PlaceComments({ placeId, currentUserId }) {
       .order("created_at", { ascending: false });
 
     const userIds = Array.from(new Set((rows || []).map((r) => r.user_id)));
-    let nameMap = {};
+    let profileMap = {};
     if (userIds.length) {
       const { data: profs } = await supabase
         .from("profiles")
-        .select("id, display_name")
+        .select("id, display_name, avatar_url")
         .in("id", userIds);
-      nameMap = Object.fromEntries((profs || []).map((p) => [p.id, p.display_name || "friend"]));
+      profileMap = Object.fromEntries((profs || []).map((p) => [p.id, p]));
     }
-    setComments((rows || []).map((r) => ({ ...r, authorName: nameMap[r.user_id] || "friend" })));
+    setComments((rows || []).map((r) => ({
+      ...r,
+      authorProfile: profileMap[r.user_id] || { display_name: "friend" },
+    })));
     setLoading(false);
   }
 
@@ -91,14 +95,19 @@ export default function PlaceComments({ placeId, currentUserId }) {
               style={{ transform: `rotate(${[-2, 1, -1, 2][i % 4]}deg)` }}
             >
               <span className={`comment-tape comment-tape-${["pink", "yellow", "sage"][i % 3]}`} />
-              <p className="comment-text">{c.content}</p>
-              <p className="comment-meta">
-                — <Link href={`/u/${c.user_id}`}>{c.authorName}</Link>
-                <span className="comment-time"> · {timeAgo(c.created_at)}</span>
+              <div className="comment-header">
+                <Link href={`/u/${c.user_id}`} className="comment-avatar-link">
+                  <Avatar profile={c.authorProfile} size={32} />
+                </Link>
+                <Link href={`/u/${c.user_id}`} className="comment-author">
+                  {c.authorProfile.display_name || "friend"}
+                </Link>
+                <span className="comment-time">{timeAgo(c.created_at)}</span>
                 {c.user_id === currentUserId && (
                   <button onClick={() => remove(c.id)} className="comment-delete" title="remove">×</button>
                 )}
-              </p>
+              </div>
+              <p className="comment-text">{c.content}</p>
             </li>
           ))}
         </ul>

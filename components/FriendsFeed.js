@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import Avatar from "./Avatar";
 
 export default function FriendsFeed({ currentUserId }) {
   const [items, setItems] = useState([]);
@@ -60,11 +61,11 @@ export default function FriendsFeed({ currentUserId }) {
         .limit(20),
       supabase
         .from("profiles")
-        .select("id, display_name")
+        .select("id, display_name, avatar_url")
         .in("id", friendIds),
     ]);
 
-    const nameMap = Object.fromEntries((profiles || []).map((p) => [p.id, p.display_name || "friend"]));
+    const profileMap = Object.fromEntries((profiles || []).map((p) => [p.id, p]));
 
     // Resolve recommendation places + senders
     const recPlaceIds = (incomingRecs || []).map((r) => r.place_id);
@@ -83,7 +84,7 @@ export default function FriendsFeed({ currentUserId }) {
       feed.push({
         type: "added",
         ts: p.created_at,
-        userName: nameMap[p.user_id] || "friend",
+        userProfile: profileMap[p.user_id] || { display_name: "friend" },
         userId: p.user_id,
         place: p,
         key: `add-${p.id}`,
@@ -96,7 +97,7 @@ export default function FriendsFeed({ currentUserId }) {
       feed.push({
         type: "recommended",
         ts: r.created_at,
-        userName: nameMap[r.from_user_id] || "a friend",
+        userProfile: profileMap[r.from_user_id] || { display_name: "a friend" },
         userId: r.from_user_id,
         place,
         note: r.note,
@@ -128,14 +129,15 @@ export default function FriendsFeed({ currentUserId }) {
 
 function FeedItem({ item }) {
   const placeHref = `/scrapbook/${item.place.id}`;
+  const name = item.userProfile?.display_name || "friend";
   return (
     <li className="feed-item">
-      <div className="feed-avatar" title={item.userName}>
-        {(item.userName || "?")[0].toUpperCase()}
-      </div>
+      <Link href={`/u/${item.userId}`} className="feed-avatar-link">
+        <Avatar profile={item.userProfile} size={42} />
+      </Link>
       <div className="feed-body">
         <p className="feed-action">
-          <Link href={`/u/${item.userId}`} className="feed-username">{item.userName}</Link>
+          <Link href={`/u/${item.userId}`} className="feed-username">{name}</Link>
           {item.type === "added" && " added a memory · "}
           {item.type === "recommended" && " recommended this to you · "}
           <span className="feed-time">{timeAgo(item.ts)}</span>

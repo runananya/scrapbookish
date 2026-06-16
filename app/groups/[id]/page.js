@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import Avatar from "@/components/Avatar";
 
 const STATUS_META = {
   visited:     { label: "been there",  cls: "status-visited"     },
@@ -53,19 +54,20 @@ export default function GroupDetailPage() {
       .select("user_id, role, joined_at")
       .eq("group_id", id);
 
-    // get display names from profiles
+    // get display names + avatars from profiles
     const memberIds = (m || []).map((r) => r.user_id);
     let profileMap = {};
     if (memberIds.length) {
       const { data: profs } = await supabase
         .from("profiles")
-        .select("id, display_name")
+        .select("id, display_name, avatar_url")
         .in("id", memberIds);
       profileMap = Object.fromEntries((profs || []).map((p) => [p.id, p]));
     }
     setMembers(
       (m || []).map((r) => ({
         ...r,
+        profile: profileMap[r.user_id] || { display_name: "someone" },
         display_name: profileMap[r.user_id]?.display_name || "someone",
       }))
     );
@@ -183,18 +185,26 @@ export default function GroupDetailPage() {
         <section className="group-members">
           <p className="auth-label" style={{ marginTop: 0 }}>members ({members.length})</p>
           <ul className="members-list">
-            {members.map((m) => (
-              <li key={m.user_id} className={`member-chip ${m.role === "admin" ? "member-admin" : ""}`}>
-                {m.user_id === user.id ? (
-                  <span>{m.display_name} (you)</span>
-                ) : (
-                  <Link href={`/u/${m.user_id}`} className="member-chip-link">
-                    {m.display_name}
-                  </Link>
-                )}
-                {m.role === "admin" && <span className="member-admin-tag">admin</span>}
-              </li>
-            ))}
+            {members.map((m) => {
+              const inner = (
+                <>
+                  <Avatar profile={m.profile} size={28} className="member-chip-avatar" />
+                  <span>{m.display_name}{m.user_id === user.id ? " (you)" : ""}</span>
+                  {m.role === "admin" && <span className="member-admin-tag">admin</span>}
+                </>
+              );
+              return (
+                <li key={m.user_id} className={`member-chip ${m.role === "admin" ? "member-admin" : ""}`}>
+                  {m.user_id === user.id ? (
+                    <span className="member-chip-content">{inner}</span>
+                  ) : (
+                    <Link href={`/u/${m.user_id}`} className="member-chip-link member-chip-content">
+                      {inner}
+                    </Link>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         </section>
 

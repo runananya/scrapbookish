@@ -9,10 +9,12 @@ import { createClient } from "@/lib/supabase/client";
 
 const MemoriesBook = dynamic(() => import("@/components/MemoriesBook"), { ssr: false });
 const FriendsFeed = dynamic(() => import("@/components/FriendsFeed"), { ssr: false });
+import UserMenu from "@/components/UserMenu";
 
 export default function ScrapbookPage() {
   const router = useRouter();
   const [user, setUser] = useState(null);
+  const [profile, setProfile] = useState(null);
   const [places, setPlaces] = useState([]);
   const [recs, setRecs] = useState([]); // pending recs with joined place + sender name
   const [loading, setLoading] = useState(true);
@@ -28,7 +30,7 @@ export default function ScrapbookPage() {
     }
     setUser(user);
 
-    const [{ data: placesData }, { data: recsData }] = await Promise.all([
+    const [{ data: placesData }, { data: recsData }, { data: profileData }] = await Promise.all([
       supabase.from("places").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
       supabase
         .from("recommendations")
@@ -36,8 +38,10 @@ export default function ScrapbookPage() {
         .eq("to_user_id", user.id)
         .eq("status", "pending")
         .order("created_at", { ascending: false }),
+      supabase.from("profiles").select("*").eq("id", user.id).maybeSingle(),
     ]);
 
+    setProfile(profileData);
     setPlaces(placesData || []);
 
     // hydrate recs with their place + sender name
@@ -139,7 +143,7 @@ export default function ScrapbookPage() {
           <Link href="/scrapbook/map" className="sticker sticker-yellow">🗺️ map</Link>
           <Link href="/groups" className="sticker sticker-pink">👯 groups</Link>
           <Link href="/scrapbook/add" className="sticker sticker-sage">+ add a place</Link>
-          <button onClick={logout} className="sticker sticker-pink sticker-btn">log out</button>
+          <UserMenu profile={profile} onLogout={logout} />
         </nav>
       </header>
 
