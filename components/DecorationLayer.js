@@ -4,6 +4,11 @@ import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 const STICKERS = ["♥", "♡", "★", "✦", "✨", "🌸", "🌟", "🌷", "💕", "💫", "🎀", "🌙", "📍", "🦋", "🍓"];
+const IMAGE_STICKERS = [
+  { url: "/stickers/bows.jpg",    label: "bows"    },
+  { url: "/stickers/tickets.jpg", label: "tickets" },
+  { url: "/stickers/stamps.jpg",  label: "stamps"  },
+];
 const TEXT_COLORS = [
   { name: "coral",  value: "#e07856" },
   { name: "wine",   value: "#b23c2a" },
@@ -32,6 +37,21 @@ export default function DecorationLayer({ place, isOwner }) {
         y: 50,
         rotation: Math.floor(Math.random() * 30) - 15,
         size: 56,
+      },
+    ]);
+  }
+
+  function addImageSticker(url) {
+    setDecorations((d) => [
+      ...d,
+      {
+        id: newId(),
+        type: "sticker",
+        imageUrl: url,
+        x: 50,
+        y: 50,
+        rotation: Math.floor(Math.random() * 20) - 10,
+        size: 140,
       },
     ]);
   }
@@ -110,6 +130,22 @@ export default function DecorationLayer({ place, isOwner }) {
             {STICKERS.map((s) => (
               <button key={s} type="button" onClick={() => addSticker(s)} className="palette-sticker">
                 {s}
+              </button>
+            ))}
+          </div>
+          <p className="palette-section-label">sticker packs (drag to position · double-click to remove)</p>
+          <div className="palette-image-stickers">
+            {IMAGE_STICKERS.map((s) => (
+              <button
+                key={s.url}
+                type="button"
+                onClick={() => addImageSticker(s.url)}
+                className="palette-image-sticker"
+                title={s.label}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={s.url} alt={s.label} />
+                <span className="palette-image-sticker-label">{s.label}</span>
               </button>
             ))}
           </div>
@@ -216,7 +252,21 @@ function DecorationItem({ decoration, editing, containerRef, onUpdate, onRemove 
 
   return (
     <div ref={itemRef} style={baseStyle} onDoubleClick={onDoubleClick} className={editing ? "decoration-editing" : ""}>
-      {decoration.type === "sticker" ? decoration.emoji : decoration.content}
+      {decoration.type === "sticker" ? (
+        decoration.imageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={decoration.imageUrl}
+            alt=""
+            style={{ width: decoration.size, height: "auto", display: "block", pointerEvents: "none" }}
+            draggable={false}
+          />
+        ) : (
+          decoration.emoji
+        )
+      ) : (
+        decoration.content
+      )}
       {editing && decoration.type === "text" && (
         <button
           type="button"
