@@ -466,10 +466,12 @@ function MemoryFace({ place, index, editing, onMoveDecoration, onRemoveDecoratio
     return r;
   }, [place.review]);
 
-  // prefer the first original photo (clean) over the collage which has text baked in
-  const pageImageUrl = useMemo(() => {
-    if (Array.isArray(place.photos) && place.photos.length > 0) return place.photos[0];
-    return place.photo_url || null;
+  // collect every original photo (up to 4) — prefer photos[] over the collage photo_url
+  const pageImageUrls = useMemo(() => {
+    if (Array.isArray(place.photos) && place.photos.length > 0) {
+      return place.photos.slice(0, 4);
+    }
+    return place.photo_url ? [place.photo_url] : [];
   }, [place.photos, place.photo_url]);
 
   const notebookTexture = getNotebookTexture();
@@ -498,9 +500,9 @@ function MemoryFace({ place, index, editing, onMoveDecoration, onRemoveDecoratio
         — {index + 1} —
       </Text>
 
-      {/* polaroid photo (top half of page) */}
-      {pageImageUrl ? (
-        <PhotoPolaroid url={pageImageUrl} />
+      {/* polaroid photo(s) — multi-photo collage layout in top half of page */}
+      {pageImageUrls.length > 0 ? (
+        <PhotoLayout urls={pageImageUrls} />
       ) : (
         <PhotoPlaceholder />
       )}
@@ -693,8 +695,41 @@ function ImageStickerMesh({ url, size }) {
 }
 
 
+// Layout configurations for 1-4 photos on a book page
+// Each slot: cx/cy = center position, envW/envH = bounding envelope,
+//            rot = z-rotation in radians, tape = washi tape color
+const PHOTO_LAYOUTS = {
+  1: [{ cx: 0, cy: 1.15, envW: 2.0, envH: 1.4, rot: -0.04, tape: "#f7c5cc" }],
+  2: [
+    { cx: -0.78, cy: 1.30, envW: 1.45, envH: 1.05, rot: -0.16, tape: "#f7c5cc" },
+    { cx:  0.78, cy: 1.00, envW: 1.45, envH: 1.05, rot:  0.12, tape: "#ffd966" },
+  ],
+  3: [
+    { cx: -0.80, cy: 1.55, envW: 1.15, envH: 0.85, rot: -0.21, tape: "#f7c5cc" },
+    { cx:  0.80, cy: 1.45, envW: 1.15, envH: 0.85, rot:  0.14, tape: "#ffd966" },
+    { cx:  0.05, cy: 0.55, envW: 1.25, envH: 0.95, rot: -0.05, tape: "#b8dbc4" },
+  ],
+  4: [
+    { cx: -0.78, cy: 1.65, envW: 1.00, envH: 0.78, rot: -0.18, tape: "#f7c5cc" },
+    { cx:  0.78, cy: 1.62, envW: 1.00, envH: 0.78, rot:  0.12, tape: "#ffd966" },
+    { cx: -0.75, cy: 0.55, envW: 1.00, envH: 0.78, rot:  0.10, tape: "#b8dbc4" },
+    { cx:  0.78, cy: 0.45, envW: 1.00, envH: 0.78, rot: -0.14, tape: "#ffb59a" },
+  ],
+};
+
+function PhotoLayout({ urls }) {
+  const slots = PHOTO_LAYOUTS[Math.min(urls.length, 4)] || PHOTO_LAYOUTS[1];
+  return (
+    <>
+      {urls.slice(0, 4).map((url, i) => (
+        <PhotoPolaroid key={`${url}-${i}`} url={url} {...slots[i]} />
+      ))}
+    </>
+  );
+}
+
 // Polaroid-style photo: preserves aspect ratio, white border, tape strip
-function PhotoPolaroid({ url }) {
+function PhotoPolaroid({ url, cx, cy, envW, envH, rot, tape }) {
   const [texture, setTexture] = useState(null);
   const [aspect, setAspect] = useState(1);
 
@@ -714,33 +749,35 @@ function PhotoPolaroid({ url }) {
     return () => { cancelled = true; };
   }, [url]);
 
-  // fit inside a 2.0 wide × 1.4 tall envelope, preserving aspect
-  const ENV_W = 2.0;
-  const ENV_H = 1.4;
+  // fit inside envelope preserving aspect ratio
   let w, h;
-  if (aspect > ENV_W / ENV_H) {
-    w = ENV_W;
-    h = ENV_W / aspect;
+  if (aspect > envW / envH) {
+    w = envW;
+    h = envW / aspect;
   } else {
-    h = ENV_H;
-    w = ENV_H * aspect;
+    h = envH;
+    w = envH * aspect;
   }
 
-  const borderSide = 0.09;
-  const borderTop = 0.09;
-  const borderBottom = 0.22;
+  // smaller borders when slots are smaller
+  const scale = envW / 2.0; // 1.0 for the single-photo layout, smaller otherwise
+  const borderSide = 0.07 * scale + 0.02;
+  const borderTop = 0.07 * scale + 0.02;
+  const borderBottom = 0.16 * scale + 0.05;
+  const tapeWidth = 0.55 * scale + 0.15;
+  const tapeHeight = 0.13 * scale + 0.04;
 
   return (
-    <group position={[0, 1.15, 0.012]} rotation={[0, 0, -0.04]}>
+    <group position={[cx, cy, 0.012]} rotation={[0, 0, rot]}>
+      {/* drop shadow */}
+      <mesh position={[0.03, (borderTop - borderBottom) / 2 - 0.03, -0.002]}>
+        <planeGeometry args={[w + borderSide * 2 + 0.04, h + borderTop + borderBottom + 0.04]} />
+        <meshBasicMaterial color="#000000" transparent opacity={0.20} toneMapped={false} />
+      </mesh>
       {/* white polaroid backing */}
       <mesh position={[0, (borderTop - borderBottom) / 2, 0]}>
         <planeGeometry args={[w + borderSide * 2, h + borderTop + borderBottom]} />
         <meshBasicMaterial color="#fffdf7" toneMapped={false} />
-      </mesh>
-      {/* drop-shadow approximation: dark slightly larger plane just behind */}
-      <mesh position={[0.03, (borderTop - borderBottom) / 2 - 0.03, -0.002]}>
-        <planeGeometry args={[w + borderSide * 2 + 0.04, h + borderTop + borderBottom + 0.04]} />
-        <meshBasicMaterial color="#000000" transparent opacity={0.18} toneMapped={false} />
       </mesh>
       {/* the photo */}
       {texture && (
@@ -749,10 +786,10 @@ function PhotoPolaroid({ url }) {
           <meshBasicMaterial map={texture} toneMapped={false} />
         </mesh>
       )}
-      {/* washi tape strip at top */}
-      <mesh position={[0, h / 2 + borderTop + 0.04, 0.003]} rotation={[0, 0, -0.12]}>
-        <planeGeometry args={[0.75, 0.16]} />
-        <meshBasicMaterial color="#f7c5cc" transparent opacity={0.88} toneMapped={false} />
+      {/* washi tape strip at top, opposite tilt to the polaroid */}
+      <mesh position={[0, h / 2 + borderTop + 0.04, 0.003]} rotation={[0, 0, -rot - 0.1]}>
+        <planeGeometry args={[tapeWidth, tapeHeight]} />
+        <meshBasicMaterial color={tape} transparent opacity={0.88} toneMapped={false} />
       </mesh>
     </group>
   );
