@@ -8,6 +8,7 @@ import { motion } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
 
 const MemoriesBook = dynamic(() => import("@/components/MemoriesBook"), { ssr: false });
+const FriendsFeed = dynamic(() => import("@/components/FriendsFeed"), { ssr: false });
 
 export default function ScrapbookPage() {
   const router = useRouter();
@@ -155,6 +156,8 @@ export default function ScrapbookPage() {
               : `${places.length} ${places.length === 1 ? "memory" : "memories"} taped in so far ✨`}
           </p>
         </header>
+
+        {user && <FriendsFeed currentUserId={user.id} />}
 
         {places.length > 0 && (
           <section className="scrap-book-section">

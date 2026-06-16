@@ -8,6 +8,7 @@ import { AnimatePresence } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
 import RecommendModal from "@/components/RecommendModal";
 import DecorationLayer from "@/components/DecorationLayer";
+import PlaceComments from "@/components/PlaceComments";
 
 const PlacesMap = dynamic(() => import("@/components/PlacesMap"), { ssr: false });
 
@@ -150,6 +151,8 @@ export default function PlaceDetailPage() {
         </div>
 
         <DecorationLayer place={place} isOwner={isMine} />
+
+        <PlaceComments placeId={place.id} currentUserId={user?.id} />
       </main>
 
       <AnimatePresence>
