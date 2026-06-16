@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useState, useMemo, useEffect, useRef } from "react";
-import { Canvas } from "@react-three/fiber";
+import { Canvas, useThree } from "@react-three/fiber";
 import { Text } from "@react-three/drei";
 import { useSpring, animated } from "@react-spring/three";
 import * as THREE from "three";
@@ -153,25 +153,26 @@ export default function MemoriesBook({ places: initialPlaces, editable = false }
         id: newDecoId(),
         type: "sticker",
         emoji,
-        x: 50,
-        y: 50,
+        // jitter so multiple stickers don't pile at dead center
+        x: 50 + (Math.random() * 30 - 15),
+        y: 50 + (Math.random() * 30 - 15),
         rotation: Math.floor(Math.random() * 30) - 15,
         size: 56,
       },
     ]);
   }
 
-  function addText() {
-    const content = window.prompt("what should it say?", "✨ a memory ✨");
-    if (!content || !content.trim()) return;
+  function addTextDecoration(content) {
+    const trimmed = (content || "").trim();
+    if (!trimmed) return;
     updateCurrentDecorations((decs) => [
       ...decs,
       {
         id: newDecoId(),
         type: "text",
-        content: content.trim(),
-        x: 50,
-        y: 50,
+        content: trimmed,
+        x: 50 + (Math.random() * 20 - 10),
+        y: 50 + (Math.random() * 20 - 10),
         rotation: Math.floor(Math.random() * 16) - 8,
         size: 32,
         color: "#e07856",
@@ -234,24 +235,15 @@ export default function MemoriesBook({ places: initialPlaces, editable = false }
           )}
         </div>
       ) : (
-        <div className="book-palette">
-          <p className="book-palette-title">decorate page {pageIndex + 1}</p>
-          <div className="book-palette-row">
-            {EMOJI_PALETTE.map((e) => (
-              <button key={e} onClick={() => addEmojiSticker(e)} className="book-palette-emoji">{e}</button>
-            ))}
-          </div>
-          <div className="book-palette-row">
-            <button onClick={addText} className="btn btn-ghost book-palette-text-btn">📝 add text</button>
-          </div>
-          <p className="book-palette-hint">drag stickers on the page · double-click to remove</p>
-          <div className="book-palette-actions">
-            <button onClick={saveEditing} disabled={saving || !dirty} className="btn btn-primary">
-              {saving ? "saving…" : dirty ? "✓ save" : "saved"}
-            </button>
-            <button onClick={cancelEditing} className="btn btn-ghost">cancel</button>
-          </div>
-        </div>
+        <BookPalette
+          pageIndex={pageIndex}
+          onAddEmoji={addEmojiSticker}
+          onAddText={addTextDecoration}
+          onSave={saveEditing}
+          onCancel={cancelEditing}
+          saving={saving}
+          dirty={dirty}
+        />
       )}
     </div>
   );
@@ -265,6 +257,64 @@ function DebugCube() {
       <boxGeometry args={[1, 1, 1]} />
       <meshStandardMaterial color="#e07856" />
     </mesh>
+  );
+}
+
+function BookPalette({ pageIndex, onAddEmoji, onAddText, onSave, onCancel, saving, dirty }) {
+  const [textInputOpen, setTextInputOpen] = useState(false);
+  const [textValue, setTextValue] = useState("");
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    if (textInputOpen) inputRef.current?.focus();
+  }, [textInputOpen]);
+
+  function commitText() {
+    if (textValue.trim()) onAddText(textValue);
+    setTextValue("");
+    setTextInputOpen(false);
+  }
+
+  return (
+    <div className="book-palette">
+      <p className="book-palette-title">decorate page {pageIndex + 1}</p>
+      <div className="book-palette-row">
+        {EMOJI_PALETTE.map((e) => (
+          <button key={e} onClick={() => onAddEmoji(e)} className="book-palette-emoji">{e}</button>
+        ))}
+      </div>
+
+      {textInputOpen ? (
+        <div className="book-palette-row book-text-row">
+          <input
+            ref={inputRef}
+            className="book-text-input"
+            value={textValue}
+            onChange={(e) => setTextValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") commitText();
+              if (e.key === "Escape") { setTextInputOpen(false); setTextValue(""); }
+            }}
+            placeholder="✨ what does it say?"
+            maxLength={80}
+          />
+          <button onClick={commitText} className="btn btn-primary book-text-add">add</button>
+          <button onClick={() => { setTextInputOpen(false); setTextValue(""); }} className="btn btn-ghost book-text-cancel">×</button>
+        </div>
+      ) : (
+        <div className="book-palette-row">
+          <button onClick={() => setTextInputOpen(true)} className="btn btn-ghost book-palette-text-btn">📝 add text</button>
+        </div>
+      )}
+
+      <p className="book-palette-hint">drag stickers on the page · double-click to remove</p>
+      <div className="book-palette-actions">
+        <button onClick={onSave} disabled={saving || !dirty} className="btn btn-primary">
+          {saving ? "saving…" : dirty ? "✓ save" : "saved"}
+        </button>
+        <button onClick={onCancel} className="btn btn-ghost">cancel</button>
+      </div>
+    </div>
   );
 }
 
@@ -583,28 +633,46 @@ function DecorationOnPage({ decoration, editing, onMove, onRemove }) {
   const { x, y, size, rotation } = decorationToWorld(decoration);
   const Z = 0.025; // above all page content
   const [hovered, setHovered] = useState(false);
-  const dragStateRef = useRef({ dragging: false });
+  const { camera, gl } = useThree();
 
   function onPointerDown(e) {
     if (!editing) return;
     e.stopPropagation();
-    e.target.setPointerCapture?.(e.pointerId);
-    dragStateRef.current.dragging = true;
+    e.nativeEvent?.preventDefault?.();
+
+    const raycaster = new THREE.Raycaster();
+    // Reusable plane representing the page surface in world space (z=0)
+    const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+    const intersect = new THREE.Vector3();
+    const ndc = new THREE.Vector2();
+    const canvas = gl.domElement;
+
+    function screenToWorldOnPage(clientX, clientY) {
+      const rect = canvas.getBoundingClientRect();
+      ndc.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+      ndc.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(ndc, camera);
+      const ok = raycaster.ray.intersectPlane(plane, intersect);
+      return ok ? intersect : null;
+    }
+
+    function onMoveDoc(we) {
+      const p = screenToWorldOnPage(we.clientX, we.clientY);
+      if (!p) return;
+      const xPct = (p.x / PAGE_W + 0.5) * 100;
+      const yPct = (-p.y / PAGE_H + 0.5) * 100;
+      onMove(Math.max(2, Math.min(98, xPct)), Math.max(2, Math.min(98, yPct)));
+    }
+    function onUpDoc() {
+      window.removeEventListener("pointermove", onMoveDoc);
+      window.removeEventListener("pointerup", onUpDoc);
+      window.removeEventListener("pointercancel", onUpDoc);
+    }
+    window.addEventListener("pointermove", onMoveDoc);
+    window.addEventListener("pointerup", onUpDoc);
+    window.addEventListener("pointercancel", onUpDoc);
   }
-  function onPointerMove(e) {
-    if (!editing || !dragStateRef.current.dragging) return;
-    e.stopPropagation();
-    // e.point is world-space intersection (with the hitbox plane)
-    // page is at world origin (book is centered via outer group offset)
-    const xPct = (e.point.x / PAGE_W + 0.5) * 100;
-    const yPct = (-e.point.y / PAGE_H + 0.5) * 100;
-    onMove(Math.max(2, Math.min(98, xPct)), Math.max(2, Math.min(98, yPct)));
-  }
-  function onPointerUp(e) {
-    if (!editing) return;
-    e.target.releasePointerCapture?.(e.pointerId);
-    dragStateRef.current.dragging = false;
-  }
+
   function onDoubleClick(e) {
     if (!editing) return;
     e.stopPropagation();
@@ -624,8 +692,6 @@ function DecorationOnPage({ decoration, editing, onMove, onRemove }) {
       {editing && (
         <mesh
           onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
           onDoubleClick={onDoubleClick}
           onPointerOver={() => setHovered(true)}
           onPointerOut={() => setHovered(false)}
