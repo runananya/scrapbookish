@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { AnimatePresence } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
+import StickerPicker from "./StickerPicker";
 
 const STICKERS = ["♥", "♡", "★", "✦", "✨", "🌸", "🌟", "🌷", "💕", "💫", "🎀", "🌙", "📍", "🦋", "🍓"];
 const IMAGE_STICKERS = [
@@ -24,6 +26,7 @@ export default function DecorationLayer({ place, isOwner }) {
   const [decorations, setDecorations] = useState(place.decorations || []);
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [picker, setPicker] = useState(null); // { url, label }
   const containerRef = useRef(null);
 
   function addSticker(emoji) {
@@ -51,9 +54,17 @@ export default function DecorationLayer({ place, isOwner }) {
         x: 50,
         y: 50,
         rotation: Math.floor(Math.random() * 20) - 10,
-        size: 140,
+        size: 120,
       },
     ]);
+  }
+
+  function openPicker(sheet) {
+    setPicker(sheet);
+  }
+  function onPickerCropped(dataUrl) {
+    addImageSticker(dataUrl);
+    setPicker(null);
   }
 
   function addText() {
@@ -123,6 +134,17 @@ export default function DecorationLayer({ place, isOwner }) {
         </button>
       )}
 
+      <AnimatePresence>
+        {picker && (
+          <StickerPicker
+            sheetUrl={picker.url}
+            label={picker.label}
+            onPick={onPickerCropped}
+            onClose={() => setPicker(null)}
+          />
+        )}
+      </AnimatePresence>
+
       {editing && (
         <div className="decoration-palette">
           <p className="palette-section-label">add a sticker</p>
@@ -133,13 +155,13 @@ export default function DecorationLayer({ place, isOwner }) {
               </button>
             ))}
           </div>
-          <p className="palette-section-label">sticker packs (drag to position · double-click to remove)</p>
+          <p className="palette-section-label">sticker packs (click a sheet, then drag a box around the one you want)</p>
           <div className="palette-image-stickers">
             {IMAGE_STICKERS.map((s) => (
               <button
                 key={s.url}
                 type="button"
-                onClick={() => addImageSticker(s.url)}
+                onClick={() => openPicker(s)}
                 className="palette-image-sticker"
                 title={s.label}
               >
