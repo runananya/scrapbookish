@@ -177,6 +177,8 @@ export default function ScrapbookPage() {
           <EmptyState />
         ) : (
           <>
+            <PhotoWall places={places} />
+
             <h3 className="scrap-grid-title">all your places</h3>
             <div className="place-grid">
               {places.map((p, i) => (
@@ -187,6 +189,59 @@ export default function ScrapbookPage() {
         )}
       </main>
     </>
+  );
+}
+
+function PhotoWall({ places }) {
+  // explode each place into one polaroid per individual photo
+  const photos = [];
+  places.forEach((p) => {
+    if (Array.isArray(p.photos) && p.photos.length > 0) {
+      p.photos.forEach((url, i) => photos.push({ url, place: p, key: `${p.id}-${i}` }));
+    } else if (p.photo_url) {
+      photos.push({ url: p.photo_url, place: p, key: p.id });
+    }
+  });
+
+  if (photos.length === 0) return null;
+
+  const TAPES = ["pink", "yellow", "sage"];
+  const TILTS = [-5, -3, -1, 1, 3, 5, -4, 2, 4, -2];
+
+  return (
+    <section className="photo-wall-section">
+      <span className="doodle-star doodle-star-1">★</span>
+      <span className="doodle-heart doodle-heart-1">♡</span>
+      <span className="hero-stamp-1" style={{ position: "absolute", top: 10, right: 18, transform: "rotate(-8deg)" }}>
+        <span className="stamp-heart">♥</span>
+        <span className="stamp-label">love</span>
+      </span>
+
+      <h3 className="photo-wall-title">
+        ✨ wall of memories <span className="squiggle">~</span>
+      </h3>
+      <p className="photo-wall-sub">every photo, taped up · click any to open the place</p>
+
+      <div className="photo-wall">
+        {photos.map((photo, i) => {
+          const tilt = TILTS[i % TILTS.length];
+          const tape = TAPES[i % TAPES.length];
+          return (
+            <Link
+              key={photo.key}
+              href={`/scrapbook/${photo.place.id}`}
+              className="wall-polaroid"
+              style={{ transform: `rotate(${tilt}deg)` }}
+            >
+              <span className={`place-tape place-tape-${tape}`} />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={photo.url} alt={photo.place.name} className="wall-polaroid-img" loading="lazy" />
+              <p className="wall-polaroid-caption">~ {photo.place.name} ~</p>
+            </Link>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 
