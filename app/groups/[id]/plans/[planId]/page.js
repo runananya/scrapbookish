@@ -151,23 +151,34 @@ function PlanDetailPageInner() {
     setSending(true);
     setMsg({ text: "rendering the invitation…", type: "success" });
     try {
-      const supabase = createClient();
       const blob = await renderInvitationBlob();
-      const path = `${user.id}/invites/${planId}-${Date.now()}.png`;
-      const { error: upErr } = await supabase.storage
-        .from("place-photos")
-        .upload(path, blob, { contentType: "image/png", cacheControl: "3600" });
-      if (upErr) throw upErr;
-      const { data: { publicUrl } } = supabase.storage.from("place-photos").getPublicUrl(path);
+      const base64 = await blobToBase64(blob);
 
       setMsg({ text: "sending emails via resend…", type: "success" });
       const res = await fetch(`/api/plans/${planId}/send`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ invitationUrl: publicUrl }),
+        body: JSON.stringify({ invitationBase64: base64 }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "send failed");
+
+      // Robust response parsing — Vercel timeouts return non-JSON
+      let data = null;
+      const text = await res.text();
+      if (text) {
+        try { data = JSON.parse(text); } catch { /* ignore */ }
+      }
+
+      if (!res.ok) {
+        const msg = data?.error
+          || (res.status === 504 ? "timed out — try fewer attendees per send"
+              : res.status === 502 ? "bad gateway — Vercel/Resend hiccup, try again"
+              : `server returned ${res.status}`);
+        throw new Error(msg);
+      }
+      if (!data) {
+        setMsg({ text: "✉️ likely sent (no confirmation payload received)", type: "success" });
+        return;
+      }
       const summary = `sent ${data.sent}/${attendees.length}${data.failed ? ` (${data.failed} failed)` : ""}`;
       setMsg({ text: `✉️ ${summary}`, type: data.failed > 0 ? "error" : "success" });
     } catch (err) {
@@ -175,6 +186,19 @@ function PlanDetailPageInner() {
     } finally {
       setSending(false);
     }
+  }
+
+  async function blobToBase64(blob) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result; // data:image/png;base64,XXX
+        const idx = String(result).indexOf(",");
+        resolve(idx >= 0 ? String(result).slice(idx + 1) : String(result));
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
   }
 
   // Auto-send invitations once data is loaded if arrived from the create form with ?send=auto

@@ -3,6 +3,9 @@ import { Resend } from "resend";
 import { createClient } from "@/lib/supabase/server";
 import { buildIcs } from "@/lib/ics";
 
+// Hint Vercel to allow more time. Pro plan supports up to 60s; hobby caps at 10s.
+export const maxDuration = 60;
+
 export async function POST(req, { params }) {
   const { planId } = await params;
   const apiKey = process.env.RESEND_API_KEY;
@@ -17,9 +20,12 @@ export async function POST(req, { params }) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "not authenticated" }, { status: 401 });
 
-  const { invitationUrl } = await req.json().catch(() => ({}));
-  if (!invitationUrl) {
-    return NextResponse.json({ error: "invitationUrl is required" }, { status: 400 });
+  const body = await req.json().catch(() => ({}));
+  // Accept either base64 inline (preferred, faster) or a URL to fetch
+  const { invitationBase64, invitationUrl } = body;
+
+  if (!invitationBase64 && !invitationUrl) {
+    return NextResponse.json({ error: "invitationBase64 or invitationUrl is required" }, { status: 400 });
   }
 
   // Load plan + group + attendees
@@ -44,15 +50,19 @@ export async function POST(req, { params }) {
     return NextResponse.json({ error: "invite some friends first" }, { status: 400 });
   }
 
-  // Fetch the invitation PNG once and base64 it
+  // Get the PNG as base64 — either passed in directly (preferred) or fetched
   let pngBase64;
   try {
-    const imgRes = await fetch(invitationUrl);
-    if (!imgRes.ok) throw new Error(`fetch failed: ${imgRes.status}`);
-    const buf = Buffer.from(await imgRes.arrayBuffer());
-    pngBase64 = buf.toString("base64");
+    if (invitationBase64) {
+      pngBase64 = invitationBase64;
+    } else {
+      const imgRes = await fetch(invitationUrl, { signal: AbortSignal.timeout(8000) });
+      if (!imgRes.ok) throw new Error(`fetch failed: ${imgRes.status}`);
+      const buf = Buffer.from(await imgRes.arrayBuffer());
+      pngBase64 = buf.toString("base64");
+    }
   } catch (err) {
-    return NextResponse.json({ error: `couldn't fetch invitation: ${err.message}` }, { status: 500 });
+    return NextResponse.json({ error: `couldn't load invitation image: ${err.message}` }, { status: 500 });
   }
 
   // Generate the .ics
