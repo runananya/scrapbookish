@@ -18,6 +18,8 @@ export default function NewPlanPage() {
   const [endsAt, setEndsAt] = useState("");
   const [locationName, setLocationName] = useState("");
   const [locationAddress, setLocationAddress] = useState("");
+  const [emailsText, setEmailsText] = useState("");
+  const [autoSend, setAutoSend] = useState(true);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState({ text: "", type: "" });
 
@@ -40,10 +42,12 @@ export default function NewPlanPage() {
     e.preventDefault();
     if (busy) return;
     setBusy(true);
-    setMsg({ text: "", type: "" });
+    setMsg({ text: "creating plan…", type: "success" });
 
     const supabase = createClient();
-    const { data, error } = await supabase
+
+    // Step 1: create the plan
+    const { data: plan, error } = await supabase
       .from("plans")
       .insert({
         group_id: id,
@@ -58,12 +62,43 @@ export default function NewPlanPage() {
       .select()
       .single();
 
-    setBusy(false);
     if (error) {
+      setBusy(false);
       setMsg({ text: error.message, type: "error" });
       return;
     }
-    router.push(`/groups/${id}/plans/${data.id}`);
+
+    // Step 2: parse + insert invited emails as attendees
+    const emails = parseEmails(emailsText);
+    let attendeeCount = 0;
+    if (emails.length > 0) {
+      setMsg({ text: `inviting ${emails.length} ${emails.length === 1 ? "friend" : "friends"}…`, type: "success" });
+      const rows = emails.map((email) => ({ plan_id: plan.id, email }));
+      const { error: attErr } = await supabase.from("plan_attendees").insert(rows);
+      if (attErr) {
+        setMsg({ text: `plan saved but couldn't add attendees: ${attErr.message}`, type: "error" });
+        setBusy(false);
+        return;
+      }
+      attendeeCount = emails.length;
+    }
+
+    setBusy(false);
+    // If they wanted to auto-send and there are emails, pass a flag so the
+    // detail page fires the send flow on mount.
+    const params = autoSend && attendeeCount > 0 ? "?send=auto" : "";
+    router.push(`/groups/${id}/plans/${plan.id}${params}`);
+  }
+
+  function parseEmails(text) {
+    return Array.from(
+      new Set(
+        text
+          .split(/[\s,;\n]+/)
+          .map((e) => e.trim().toLowerCase())
+          .filter((e) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e))
+      )
+    );
   }
 
   if (loading) return <main className="auth-wrap"><p className="auth-sub">…</p></main>;
@@ -149,9 +184,38 @@ export default function NewPlanPage() {
             maxLength={200}
           />
 
+          <label className="auth-label" htmlFor="p-emails">invite friends (their emails)</label>
+          <textarea
+            id="p-emails"
+            className="auth-input auth-textarea"
+            value={emailsText}
+            onChange={(e) => setEmailsText(e.target.value)}
+            placeholder="riya@example.com, aanya@example.com&#10;separate emails by commas or new lines"
+            rows={3}
+            maxLength={1500}
+          />
+          {emailsText.trim().length > 0 && (
+            <label
+              className="auth-label"
+              style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 18, cursor: "pointer" }}
+            >
+              <input
+                type="checkbox"
+                checked={autoSend}
+                onChange={(e) => setAutoSend(e.target.checked)}
+                style={{ width: 20, height: 20, accentColor: "var(--coral)" }}
+              />
+              <span>✨ send invitations now (with calendar + graphic)</span>
+            </label>
+          )}
+
           <div className="auth-row">
             <button type="submit" className="btn btn-primary" disabled={busy || !title.trim() || !startsAt}>
-              {busy ? "making the plan…" : "make the plan →"}
+              {busy
+                ? "saving…"
+                : emailsText.trim().length > 0
+                ? (autoSend ? "save & send invites ✨" : "save plan + add invitees")
+                : "make the plan →"}
             </button>
           </div>
 

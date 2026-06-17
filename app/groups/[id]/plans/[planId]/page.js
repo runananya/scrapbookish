@@ -1,16 +1,27 @@
 "use client";
 
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { domToBlob } from "modern-screenshot";
 import InvitationCard from "@/components/InvitationCard";
 import { downloadIcs } from "@/lib/ics";
 
 export default function PlanDetailPage() {
+  return (
+    <Suspense fallback={<main className="auth-wrap"><p className="auth-sub">loading the plan…</p></main>}>
+      <PlanDetailPageInner />
+    </Suspense>
+  );
+}
+
+function PlanDetailPageInner() {
   const { id, planId } = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const autoSendOnLoad = searchParams.get("send") === "auto";
+  const autoSendRef = useRef(false);
   const [user, setUser] = useState(null);
   const [plan, setPlan] = useState(null);
   const [group, setGroup] = useState(null);
@@ -134,9 +145,9 @@ export default function PlanDetailPage() {
     }
   }
 
-  async function sendInvitationEmails() {
+  async function sendInvitationEmails(skipConfirm = false) {
     if (sending || attendees.length === 0) return;
-    if (!confirm(`send invitations to ${attendees.length} ${attendees.length === 1 ? "person" : "people"}?`)) return;
+    if (!skipConfirm && !confirm(`send invitations to ${attendees.length} ${attendees.length === 1 ? "person" : "people"}?`)) return;
     setSending(true);
     setMsg({ text: "rendering the invitation…", type: "success" });
     try {
@@ -165,6 +176,15 @@ export default function PlanDetailPage() {
       setSending(false);
     }
   }
+
+  // Auto-send invitations once data is loaded if arrived from the create form with ?send=auto
+  useEffect(() => {
+    if (loading || !plan || !user || autoSendRef.current) return;
+    if (autoSendOnLoad && plan.created_by === user.id && attendees.length > 0) {
+      autoSendRef.current = true;
+      sendInvitationEmails(true);
+    }
+  }, [loading, plan, user, attendees, autoSendOnLoad]); // eslint-disable-line
 
   if (loading) return <main className="auth-wrap"><p className="auth-sub">loading the plan…</p></main>;
   if (!plan)   return (
