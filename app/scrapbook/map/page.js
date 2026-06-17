@@ -3,8 +3,9 @@
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import AnchoredDropdown from "@/components/AnchoredDropdown";
 
 const PlacesMap = dynamic(() => import("@/components/PlacesMap"), { ssr: false });
 
@@ -43,6 +44,7 @@ export default function ScrapbookMapPage() {
   const [tempMarker, setTempMarker] = useState(null); // { lat, lng, name }
   const [addingIdx, setAddingIdx] = useState(null); // which nominatim result is currently adding
   const [toast, setToast] = useState("");
+  const searchInputRef = useRef(null);
 
   useEffect(() => { loadData(); }, []); // eslint-disable-line
 
@@ -145,6 +147,7 @@ export default function ScrapbookMapPage() {
       <div className="map-filters-stack">
         <div className="map-search-wrap">
           <input
+            ref={searchInputRef}
             type="search"
             value={query}
             onChange={(e) => { setQuery(e.target.value); setDropdownOpen(true); }}
@@ -153,8 +156,12 @@ export default function ScrapbookMapPage() {
             placeholder="🔍 search your places or anywhere on the map…"
             className="map-search"
           />
-          {dropdownOpen && query.trim().length >= 2 && (
-            <div className="map-search-dropdown">
+          <AnchoredDropdown
+            anchorRef={searchInputRef}
+            open={dropdownOpen && query.trim().length >= 2}
+            className="map-search-dropdown"
+          >
+            <div>
               {filtered.length > 0 && (
                 <>
                   <p className="map-search-section">your places ({filtered.length})</p>
@@ -245,7 +252,7 @@ export default function ScrapbookMapPage() {
                 </ul>
               )}
             </div>
-          )}
+          </AnchoredDropdown>
         </div>
         <div className="map-filters">
           {FILTERS.map((f) => (
