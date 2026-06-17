@@ -23,6 +23,13 @@ function filterStickerCls(id) {
   return "sticker-pink";
 }
 
+function filterEmptyTitle(id) {
+  if (id === "visited")     return "no 'been there' pins yet";
+  if (id === "wishlist")    return "no 'want to go' pins yet";
+  if (id === "recommended") return "no 'recommend' pins yet";
+  return "no pins yet";
+}
+
 export default function ScrapbookMapPage() {
   const router = useRouter();
   const [user, setUser] = useState(null);
@@ -276,13 +283,18 @@ export default function ScrapbookMapPage() {
           <div className="map-empty-overlay">
             <div className="empty-state map-empty">
               <p className="empty-emoji">🗺️</p>
-              <p className="empty-title">no pins yet</p>
+              <p className="empty-title">
+                {places.length === 0
+                  ? "no pins yet"
+                  : filter === "all"
+                  ? "no places match your search"
+                  : filterEmptyTitle(filter)}
+              </p>
               <p className="empty-sub">
                 {places.length === 0
-                  ? "add a place and pin it on the map — it'll show up here"
-                  : "no places match this filter — try another"}
+                  ? "search a place above ↑ and tap a status to drop your first pin"
+                  : "type a place in the search above ↑ — the quick-add buttons let you save it as this status in one tap"}
               </p>
-              <Link href="/scrapbook/add" className="btn btn-primary">+ add a place</Link>
             </div>
           </div>
         )}

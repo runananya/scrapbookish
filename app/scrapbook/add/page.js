@@ -43,7 +43,12 @@ function AddPlacePageInner() {
     }
     return null;
   });
-  const [status, setStatus] = useState("visited");
+  const initialStatus = searchParams.get("status");
+  const [status, setStatus] = useState(
+    initialStatus === "visited" || initialStatus === "wishlist" || initialStatus === "recommended"
+      ? initialStatus
+      : "visited"
+  );
   const [photos, setPhotos] = useState([]); // [{ file, previewUrl, id }]
   const [rating, setRating] = useState(0);
   const [review, setReview] = useState("");
