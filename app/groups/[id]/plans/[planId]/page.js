@@ -134,8 +134,18 @@ function PlanDetailPageInner() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ hint: plan.title }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "generation failed");
+
+      let data = null;
+      const text = await res.text();
+      if (text) { try { data = JSON.parse(text); } catch { /* ignore */ } }
+      if (!res.ok) {
+        const msg = data?.error
+          || (res.status === 504 ? "timed out — the ai generation took too long"
+              : res.status === 502 ? "bad gateway — try again"
+              : `server returned ${res.status}`);
+        throw new Error(msg);
+      }
+      if (!data?.bg_image_url) throw new Error("no image url returned");
       setPlan((p) => ({ ...p, bg_image_url: data.bg_image_url }));
       setMsg({ text: "✓ background ready! it's in the preview below.", type: "success" });
     } catch (err) {
