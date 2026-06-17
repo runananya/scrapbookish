@@ -3,7 +3,7 @@
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import CollageRenderer from "@/components/CollageRenderer";
 import { domToBlob } from "modern-screenshot";
@@ -19,6 +19,14 @@ const STATUSES = [
 const MAX_PHOTOS = 4;
 
 export default function AddPlacePage() {
+  return (
+    <Suspense fallback={<main className="auth-wrap"><p className="auth-sub">…</p></main>}>
+      <AddPlacePageInner />
+    </Suspense>
+  );
+}
+
+function AddPlacePageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [user, setUser] = useState(null);
