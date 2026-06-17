@@ -1586,6 +1586,8 @@ body {
   border-radius: 10px;
   box-shadow: 0 6px 16px rgba(0,0,0,0.08);
 }
+.places-search-wrap { position: relative; margin-bottom: 14px; }
+.places-search-wrap .places-search { margin-bottom: 0; }
 .places-search {
   width: 100%;
   padding: 12px 16px;

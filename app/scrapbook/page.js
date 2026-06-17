@@ -268,15 +268,89 @@ const FILTER_OPTIONS = [
 
 function PlacesFilter({ filter, setFilter, query, setQuery, counts, shown }) {
   const total = filter === "all" ? counts.total : counts[filter] ?? 0;
+  const [nominatim, setNominatim] = useState([]);
+  const [nomLoading, setNomLoading] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+
+  useEffect(() => {
+    const q = query.trim();
+    if (q.length < 3) {
+      setNominatim([]);
+      setNomLoading(false);
+      return;
+    }
+    setNomLoading(true);
+    const timer = setTimeout(async () => {
+      try {
+        const url = `https://nominatim.openstreetmap.org/search?format=json&limit=5&addressdetails=0&q=${encodeURIComponent(q)}`;
+        const res = await fetch(url);
+        const data = await res.json();
+        setNominatim(data || []);
+      } catch {
+        setNominatim([]);
+      } finally {
+        setNomLoading(false);
+      }
+    }, 450);
+    return () => clearTimeout(timer);
+  }, [query]);
+
   return (
     <div className="places-filter">
-      <input
-        type="search"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        placeholder="🔍 search by name, location, or review…"
-        className="places-search"
-      />
+      <div className="places-search-wrap">
+        <input
+          type="search"
+          value={query}
+          onChange={(e) => { setQuery(e.target.value); setDropdownOpen(true); }}
+          onFocus={() => setDropdownOpen(true)}
+          onBlur={() => setTimeout(() => setDropdownOpen(false), 200)}
+          placeholder="🔍 search your places or anywhere on earth…"
+          className="places-search"
+        />
+        {dropdownOpen && query.trim().length >= 3 && (
+          <div className="map-search-dropdown">
+            <p className="map-search-section">
+              your places ({shown})
+            </p>
+            {shown === 0 ? (
+              <p className="map-search-empty">none of yours match — try a world location below</p>
+            ) : (
+              <p className="map-search-empty" style={{ fontStyle: "italic" }}>
+                see {shown} match{shown === 1 ? "" : "es"} in the grid
+              </p>
+            )}
+
+            <p className="map-search-section">
+              add somewhere new {nomLoading && "· searching…"}
+            </p>
+            {nominatim.length === 0 && !nomLoading ? (
+              <p className="map-search-empty">type more to search world locations</p>
+            ) : (
+              <ul>
+                {nominatim.map((r) => {
+                  const shortName = r.display_name.split(",")[0];
+                  const href = `/scrapbook/add?lat=${r.lat}&lng=${r.lon}&name=${encodeURIComponent(shortName)}&location=${encodeURIComponent(r.display_name)}`;
+                  return (
+                    <li key={`${r.osm_id}-${r.osm_type}`}>
+                      <a
+                        href={href}
+                        className="map-search-result"
+                        onMouseDown={(e) => e.preventDefault()}
+                      >
+                        🌍 <strong>{shortName}</strong>
+                        <br />
+                        <span style={{ fontSize: 12, color: "var(--ink-soft)" }}>
+                          {r.display_name}
+                        </span>
+                      </a>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        )}
+      </div>
       <div className="places-filter-row">
         {FILTER_OPTIONS.map((f) => (
           <button
