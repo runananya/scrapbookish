@@ -44,7 +44,19 @@ export default function ScrapbookMapPage() {
   const [tempMarker, setTempMarker] = useState(null); // { lat, lng, name }
   const [addingIdx, setAddingIdx] = useState(null); // which nominatim result is currently adding
   const [toast, setToast] = useState("");
+  const [mapStyle, setMapStyle] = useState("accurate");
   const searchInputRef = useRef(null);
+
+  // load saved map style preference once on mount
+  useEffect(() => {
+    const saved = typeof window !== "undefined" && localStorage.getItem("scrapbook:mapStyle");
+    if (saved === "watercolor" || saved === "accurate") setMapStyle(saved);
+  }, []);
+  function toggleMapStyle() {
+    const next = mapStyle === "watercolor" ? "accurate" : "watercolor";
+    setMapStyle(next);
+    if (typeof window !== "undefined") localStorage.setItem("scrapbook:mapStyle", next);
+  }
 
   useEffect(() => { loadData(); }, []); // eslint-disable-line
 
@@ -270,6 +282,14 @@ export default function ScrapbookMapPage() {
               ? `${filtered.length} ${filtered.length === 1 ? "place" : "places"}`
               : `${filtered.length} of ${places.length}`}
           </span>
+          <button
+            type="button"
+            onClick={toggleMapStyle}
+            className="map-style-toggle"
+            title={mapStyle === "watercolor" ? "switch to detailed map" : "switch to watercolor"}
+          >
+            {mapStyle === "watercolor" ? "📍 accurate" : "🎨 watercolor"}
+          </button>
           {(query || filter !== "all" || tempMarker) && (
             <button
               type="button"
@@ -285,7 +305,7 @@ export default function ScrapbookMapPage() {
       {toast && <div className="map-toast">{toast}</div>}
 
       <div className="map-stage">
-        <PlacesMap places={filtered} />
+        <PlacesMap places={filtered} autoFit tempMarker={tempMarker} mapStyle={mapStyle} />
         {filtered.length === 0 && (
           <div className="map-empty-overlay">
             <div className="empty-state map-empty">

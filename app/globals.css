@@ -2502,6 +2502,24 @@ body {
   cursor: pointer;
   padding: 4px 8px;
 }
+.map-style-toggle {
+  background: #fffdf7;
+  border: 2px solid var(--ink);
+  border-radius: 18px;
+  padding: 6px 14px;
+  font-family: var(--ff-kalam);
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--ink);
+  cursor: pointer;
+  box-shadow: 2px 2px 0 var(--ink);
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+  white-space: nowrap;
+}
+.map-style-toggle:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 3px 3px 0 var(--ink);
+}
 .map-filters {
   display: flex;
   gap: 12px;

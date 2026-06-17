@@ -22,29 +22,29 @@ function makeIcon(status) {
   });
 }
 
-function tileUrl() {
-  const k = process.env.NEXT_PUBLIC_STADIA_API_KEY;
-  if (k) {
-    return `https://tiles.stadiamaps.com/tiles/stamen_watercolor/{z}/{x}/{y}.jpg?api_key=${k}`;
+function tileUrl(style) {
+  if (style === "watercolor") {
+    const k = process.env.NEXT_PUBLIC_STADIA_API_KEY;
+    if (k) return `https://tiles.stadiamaps.com/tiles/stamen_watercolor/{z}/{x}/{y}.jpg?api_key=${k}`;
+    // fallback when no key: use accurate (so it doesn't look broken)
   }
-  // bulletproof fallback: plain OSM (no subdomain placeholders, no auth)
-  return "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
+  // accurate (default): CartoDB Voyager — colorful, shows POIs + streets at high zoom
+  return "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
 }
 
-// Transparent label overlay tile layer — adds road/street/city labels on top
-// of the watercolor base so locations are readable. Only used with Stadia.
-function labelsTileUrl() {
+// Transparent labels overlay — only adds value over the watercolor base
+function labelsTileUrl(style) {
+  if (style !== "watercolor") return null;
   const k = process.env.NEXT_PUBLIC_STADIA_API_KEY;
   if (!k) return null;
   return `https://tiles.stadiamaps.com/tiles/stamen_toner_labels/{z}/{x}/{y}{r}.png?api_key=${k}`;
 }
 
-function tileAttribution() {
-  const k = process.env.NEXT_PUBLIC_STADIA_API_KEY;
-  if (k) {
+function tileAttribution(style) {
+  if (style === "watercolor") {
     return '&copy; <a href="https://stadiamaps.com/">Stadia Maps</a> &copy; <a href="https://stamen.com/">Stamen</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
   }
-  return '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+  return '&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
 }
 
 // Force Leaflet to recompute its container size after the surrounding flex
@@ -96,7 +96,7 @@ const tempPinIcon = L.divIcon({
   popupAnchor: [0, -38],
 });
 
-export default function PlacesMap({ places, autoFit = false, tempMarker = null }) {
+export default function PlacesMap({ places, autoFit = false, tempMarker = null, mapStyle = "accurate" }) {
   const center = places.length
     ? [places[0].lat, places[0].lng]
     : [12.9716, 77.5946];
@@ -110,11 +110,12 @@ export default function PlacesMap({ places, autoFit = false, tempMarker = null }
       scrollWheelZoom
     >
       <TileLayer
-        attribution={tileAttribution()}
-        url={tileUrl()}
+        attribution={tileAttribution(mapStyle)}
+        url={tileUrl(mapStyle)}
+        key={mapStyle}
       />
-      {labelsTileUrl() && (
-        <TileLayer url={labelsTileUrl()} opacity={0.9} />
+      {labelsTileUrl(mapStyle) && (
+        <TileLayer url={labelsTileUrl(mapStyle)} opacity={0.9} />
       )}
       <InvalidateSize />
       {places.map((p) => (

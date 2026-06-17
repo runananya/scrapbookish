@@ -7,26 +7,12 @@ import "leaflet/dist/leaflet.css";
 
 const DEFAULT_CENTER = [12.9716, 77.5946]; // Bangalore — sensible default
 
+// MapPicker always uses the accurate Voyager style for precision when picking pins
 function tileUrl() {
-  const k = process.env.NEXT_PUBLIC_STADIA_API_KEY;
-  if (k) {
-    return `https://tiles.stadiamaps.com/tiles/stamen_watercolor/{z}/{x}/{y}.jpg?api_key=${k}`;
-  }
-  return "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
+  return "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
 }
-
-function labelsTileUrl() {
-  const k = process.env.NEXT_PUBLIC_STADIA_API_KEY;
-  if (!k) return null;
-  return `https://tiles.stadiamaps.com/tiles/stamen_toner_labels/{z}/{x}/{y}{r}.png?api_key=${k}`;
-}
-
 function tileAttribution() {
-  const k = process.env.NEXT_PUBLIC_STADIA_API_KEY;
-  if (k) {
-    return '&copy; <a href="https://stadiamaps.com/">Stadia Maps</a> &copy; <a href="https://stamen.com/">Stamen</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
-  }
-  return '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+  return '&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
 }
 
 function InvalidateSize() {
@@ -122,9 +108,6 @@ export default function MapPicker({ value, onChange }) {
             attribution={tileAttribution()}
             url={tileUrl()}
           />
-          {labelsTileUrl() && (
-            <TileLayer url={labelsTileUrl()} opacity={0.9} />
-          )}
           <InvalidateSize />
           {markerPos && <Marker position={markerPos} icon={pinIcon} />}
           <FlyTo position={markerPos} />
