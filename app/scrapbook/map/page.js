@@ -180,6 +180,7 @@ export default function ScrapbookMapPage() {
                 <ul>
                   {nominatim.map((r, idx) => {
                     const shortName = r.display_name.split(",")[0];
+                    const rest = r.display_name.split(",").slice(1).join(",").trim();
                     const isAdding = addingIdx === idx;
                     return (
                       <li key={`${r.osm_id}-${r.osm_type}`} className="map-search-result-wrap">
@@ -195,11 +196,8 @@ export default function ScrapbookMapPage() {
                           }}
                           className="map-search-result"
                         >
-                          🌍 <strong>{shortName}</strong>
-                          <br />
-                          <span style={{ fontSize: 12, color: "var(--ink-soft)" }}>
-                            {r.display_name}
-                          </span>
+                          <strong>🌍 {shortName}</strong>
+                          {rest && <span>{rest}</span>}
                         </button>
                         <div className="quick-add-row">
                           <button
