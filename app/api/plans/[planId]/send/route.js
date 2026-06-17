@@ -6,10 +6,21 @@ import { buildIcs } from "@/lib/ics";
 // Hint Vercel to allow more time. Pro plan supports up to 60s; hobby caps at 10s.
 export const maxDuration = 60;
 
+// Defensively extract a Resend API key from whatever was pasted into the env var.
+// Handles: plain key, "RESEND_API_KEY=re_xxx" lines accidentally pasted as the
+// value, multi-line pastes, concatenated duplicates, surrounding quotes.
+function cleanResendKey(raw) {
+  if (!raw) return null;
+  const s = String(raw);
+  // Most reliable: just grab the first re_... token
+  const m = s.match(/re_[A-Za-z0-9_-]{20,}/);
+  return m ? m[0] : s.trim().replace(/^["']|["']$/g, "");
+}
+
 export async function POST(req, { params }) {
   try {
     const { planId } = await params;
-    const apiKey = process.env.RESEND_API_KEY;
+    const apiKey = cleanResendKey(process.env.RESEND_API_KEY);
     if (!apiKey) {
       return NextResponse.json(
         { error: "RESEND_API_KEY is not set on the server" },
