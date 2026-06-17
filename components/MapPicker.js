@@ -15,6 +15,12 @@ function tileUrl() {
   return "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 }
 
+function labelsTileUrl() {
+  const k = process.env.NEXT_PUBLIC_STADIA_API_KEY;
+  if (!k) return null;
+  return `https://tiles.stadiamaps.com/tiles/stamen_toner_labels/{z}/{x}/{y}{r}.png?api_key=${k}`;
+}
+
 function tileAttribution() {
   const k = process.env.NEXT_PUBLIC_STADIA_API_KEY;
   if (k) {
@@ -116,6 +122,9 @@ export default function MapPicker({ value, onChange }) {
             attribution={tileAttribution()}
             url={tileUrl()}
           />
+          {labelsTileUrl() && (
+            <TileLayer url={labelsTileUrl()} opacity={0.9} />
+          )}
           <InvalidateSize />
           {markerPos && <Marker position={markerPos} icon={pinIcon} />}
           <FlyTo position={markerPos} />
