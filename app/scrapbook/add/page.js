@@ -20,12 +20,21 @@ const MAX_PHOTOS = 4;
 
 export default function AddPlacePage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const [name, setName] = useState("");
-  const [location, setLocation] = useState("");
-  const [coords, setCoords] = useState(null);
+  // initialize from URL params if present (when arriving from map "+ add" link)
+  const [name, setName] = useState(() => searchParams.get("name") || "");
+  const [location, setLocation] = useState(() => searchParams.get("location") || "");
+  const [coords, setCoords] = useState(() => {
+    const lat = parseFloat(searchParams.get("lat"));
+    const lng = parseFloat(searchParams.get("lng"));
+    if (!isNaN(lat) && !isNaN(lng)) {
+      return { lat, lng, label: searchParams.get("location") || null };
+    }
+    return null;
+  });
   const [status, setStatus] = useState("visited");
   const [photos, setPhotos] = useState([]); // [{ file, previewUrl, id }]
   const [rating, setRating] = useState(0);
