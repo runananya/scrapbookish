@@ -143,6 +143,11 @@ export default function PlaceDetailPage() {
             </button>
           )}
           {isMine && (
+            <Link href={`/scrapbook/${place.id}/edit`} className="btn btn-ghost">
+              ✏️ edit this memory
+            </Link>
+          )}
+          {isMine && (
             <button onClick={deletePlace} className="btn btn-ghost place-detail-delete">
               🗑 remove from scrapbook
             </button>

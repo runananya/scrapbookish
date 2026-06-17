@@ -60,6 +60,7 @@ export async function POST(req, { params }) {
 
   // Send via Resend
   const resend = new Resend(apiKey);
+  const fromAddress = process.env.RESEND_FROM_EMAIL || "Scrapbook <onboarding@resend.dev>";
   const senderName = creatorProfile?.display_name || "your friend";
   const niceDate = new Date(plan.starts_at).toLocaleDateString("en-US", {
     weekday: "long", month: "long", day: "numeric", year: "numeric",
@@ -71,7 +72,7 @@ export async function POST(req, { params }) {
   const results = await Promise.allSettled(
     attendees.map((a) =>
       resend.emails.send({
-        from: "Scrapbook <onboarding@resend.dev>",
+        from: fromAddress,
         to: a.email,
         subject: `you're invited: ${plan.title}`,
         html: buildEmailHtml({ plan, group, senderName, niceDate, niceTime }),
