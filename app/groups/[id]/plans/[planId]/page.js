@@ -189,6 +189,19 @@ function PlanDetailPageInner() {
         setMsg({ text: "✉️ likely sent (no confirmation payload received)", type: "success" });
         return;
       }
+      if (data.failed > 0 && data.sent === 0) {
+        // Surface the actual Resend error so the user can act on it
+        const firstErr = (data.errors && data.errors[0]) || "unknown reason";
+        const isSandboxError = /only send testing emails|verify a domain/i.test(firstErr);
+        const helpText = isSandboxError
+          ? " (resend sandbox: you can only send to your own signup email until you verify a domain)"
+          : "";
+        setMsg({
+          text: `✉️ all ${data.failed} failed: ${firstErr}${helpText}`,
+          type: "error",
+        });
+        return;
+      }
       const summary = `sent ${data.sent}/${attendees.length}${data.failed ? ` (${data.failed} failed)` : ""}`;
       setMsg({ text: `✉️ ${summary}`, type: data.failed > 0 ? "error" : "success" });
     } catch (err) {
