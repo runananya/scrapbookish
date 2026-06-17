@@ -25,6 +25,7 @@ function filterStickerCls(id) {
 
 export default function ScrapbookMapPage() {
   const router = useRouter();
+  const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [places, setPlaces] = useState([]);
   const [filter, setFilter] = useState("all");
@@ -33,25 +34,55 @@ export default function ScrapbookMapPage() {
   const [nominatimLoading, setNominatimLoading] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [tempMarker, setTempMarker] = useState(null); // { lat, lng, name }
+  const [addingIdx, setAddingIdx] = useState(null); // which nominatim result is currently adding
+  const [toast, setToast] = useState("");
 
-  useEffect(() => {
+  useEffect(() => { loadData(); }, []); // eslint-disable-line
+
+  async function loadData() {
     const supabase = createClient();
-    (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        router.replace("/login");
-        return;
-      }
-      const { data } = await supabase
-        .from("places")
-        .select("*")
-        .eq("user_id", user.id)
-        .not("lat", "is", null)
-        .not("lng", "is", null);
-      setPlaces(data || []);
-      setLoading(false);
-    })();
-  }, [router]);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      router.replace("/login");
+      return;
+    }
+    setUser(user);
+    const { data } = await supabase
+      .from("places")
+      .select("*")
+      .eq("user_id", user.id)
+      .not("lat", "is", null)
+      .not("lng", "is", null);
+    setPlaces(data || []);
+    setLoading(false);
+  }
+
+  async function quickAddNominatim(r, status, idx) {
+    if (!user || addingIdx !== null) return;
+    setAddingIdx(idx);
+    const supabase = createClient();
+    const shortName = r.display_name.split(",")[0];
+    const { error } = await supabase.from("places").insert({
+      user_id: user.id,
+      name: shortName,
+      location: r.display_name,
+      status,
+      lat: parseFloat(r.lat),
+      lng: parseFloat(r.lon),
+    });
+    setAddingIdx(null);
+    if (error) {
+      alert(error.message);
+      return;
+    }
+    // refresh places list + remove from search + brief confirmation
+    await loadData();
+    setNominatim((prev) => prev.filter((x) => x !== r));
+    setTempMarker(null);
+    const labels = { visited: "been there ✓", wishlist: "want to go +", recommended: "recommended ★" };
+    setToast(`✨ saved ${shortName} as ${labels[status]}`);
+    setTimeout(() => setToast(""), 2600);
+  }
 
   // Debounced Nominatim geocoding for arbitrary locations
   useEffect(() => {
@@ -147,25 +178,65 @@ export default function ScrapbookMapPage() {
                 <p className="map-search-empty">type a city or place to search anywhere</p>
               ) : (
                 <ul>
-                  {nominatim.map((r) => (
-                    <li key={`${r.osm_id}-${r.osm_type}`}>
-                      <button
-                        type="button"
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          setTempMarker({
-                            lat: parseFloat(r.lat),
-                            lng: parseFloat(r.lon),
-                            name: r.display_name,
-                          });
-                          setDropdownOpen(false);
-                        }}
-                        className="map-search-result"
-                      >
-                        🌍 {r.display_name}
-                      </button>
-                    </li>
-                  ))}
+                  {nominatim.map((r, idx) => {
+                    const shortName = r.display_name.split(",")[0];
+                    const isAdding = addingIdx === idx;
+                    return (
+                      <li key={`${r.osm_id}-${r.osm_type}`} className="map-search-result-wrap">
+                        <button
+                          type="button"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            setTempMarker({
+                              lat: parseFloat(r.lat),
+                              lng: parseFloat(r.lon),
+                              name: r.display_name,
+                            });
+                          }}
+                          className="map-search-result"
+                        >
+                          🌍 <strong>{shortName}</strong>
+                          <br />
+                          <span style={{ fontSize: 12, color: "var(--ink-soft)" }}>
+                            {r.display_name}
+                          </span>
+                        </button>
+                        <div className="quick-add-row">
+                          <button
+                            type="button"
+                            disabled={isAdding}
+                            onMouseDown={(e) => { e.preventDefault(); quickAddNominatim(r, "visited", idx); }}
+                            className="quick-add-btn quick-add-visited"
+                          >
+                            ✓ been there
+                          </button>
+                          <button
+                            type="button"
+                            disabled={isAdding}
+                            onMouseDown={(e) => { e.preventDefault(); quickAddNominatim(r, "wishlist", idx); }}
+                            className="quick-add-btn quick-add-wishlist"
+                          >
+                            + want to go
+                          </button>
+                          <button
+                            type="button"
+                            disabled={isAdding}
+                            onMouseDown={(e) => { e.preventDefault(); quickAddNominatim(r, "recommended", idx); }}
+                            className="quick-add-btn quick-add-recommended"
+                          >
+                            ★ recommend
+                          </button>
+                          <a
+                            href={`/scrapbook/add?lat=${r.lat}&lng=${r.lon}&name=${encodeURIComponent(shortName)}&location=${encodeURIComponent(r.display_name)}`}
+                            className="quick-add-more"
+                            onMouseDown={(e) => e.preventDefault()}
+                          >
+                            more details →
+                          </a>
+                        </div>
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
             </div>
@@ -198,6 +269,8 @@ export default function ScrapbookMapPage() {
           )}
         </div>
       </div>
+
+      {toast && <div className="map-toast">{toast}</div>}
 
       <div className="map-stage">
         <PlacesMap places={filtered} />
