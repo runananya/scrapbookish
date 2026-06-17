@@ -132,11 +132,3 @@ export default function ScrapbookMapPage() {
     </div>
   );
 }
-
-function filterStickerCls(id) {
-  if (id === "all")         return "sticker-yellow";
-  if (id === "visited")     return "sticker-sage";
-  if (id === "wishlist")    return "sticker-pink";
-  if (id === "recommended") return "sticker-coral";
-  return "sticker-pink";
-}
