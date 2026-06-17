@@ -53,10 +53,19 @@ function InvalidateSize() {
 
 // Re-fit the map view to the bounds of the visible markers whenever the
 // place list changes (used for search/filter).
-function AutoFitToPlaces({ places }) {
+function AutoFitToPlaces({ places, tempMarker }) {
   const map = useMap();
   const lastKeyRef = useRef("");
   useEffect(() => {
+    // priority 1: a temp explore marker — fly to it
+    if (tempMarker) {
+      const key = `temp-${tempMarker.lat}-${tempMarker.lng}`;
+      if (key !== lastKeyRef.current) {
+        lastKeyRef.current = key;
+        map.flyTo([tempMarker.lat, tempMarker.lng], 11, { duration: 0.9 });
+      }
+      return;
+    }
     if (!places.length) return;
     const key = places.map((p) => p.id).join(",");
     if (key === lastKeyRef.current) return;
@@ -67,11 +76,19 @@ function AutoFitToPlaces({ places }) {
       const bounds = L.latLngBounds(places.map((p) => [p.lat, p.lng]));
       map.flyToBounds(bounds, { padding: [60, 60], maxZoom: 14, duration: 0.8 });
     }
-  }, [places, map]);
+  }, [places, map, tempMarker]);
   return null;
 }
 
-export default function PlacesMap({ places, autoFit = false }) {
+const tempPinIcon = L.divIcon({
+  className: "place-pin",
+  html: '<div class="place-pin-inner place-pin-temp"><span>?</span></div>',
+  iconSize: [36, 44],
+  iconAnchor: [18, 42],
+  popupAnchor: [0, -38],
+});
+
+export default function PlacesMap({ places, autoFit = false, tempMarker = null }) {
   const center = places.length
     ? [places[0].lat, places[0].lng]
     : [12.9716, 77.5946];

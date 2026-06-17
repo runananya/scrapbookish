@@ -29,6 +29,10 @@ export default function ScrapbookMapPage() {
   const [places, setPlaces] = useState([]);
   const [filter, setFilter] = useState("all");
   const [query, setQuery] = useState("");
+  const [nominatim, setNominatim] = useState([]);
+  const [nominatimLoading, setNominatimLoading] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [tempMarker, setTempMarker] = useState(null); // { lat, lng, name }
 
   useEffect(() => {
     const supabase = createClient();
@@ -48,6 +52,30 @@ export default function ScrapbookMapPage() {
       setLoading(false);
     })();
   }, [router]);
+
+  // Debounced Nominatim geocoding for arbitrary locations
+  useEffect(() => {
+    const q = query.trim();
+    if (q.length < 3) {
+      setNominatim([]);
+      setNominatimLoading(false);
+      return;
+    }
+    setNominatimLoading(true);
+    const timer = setTimeout(async () => {
+      try {
+        const url = `https://nominatim.openstreetmap.org/search?format=json&limit=5&addressdetails=0&q=${encodeURIComponent(q)}`;
+        const res = await fetch(url);
+        const data = await res.json();
+        setNominatim(data || []);
+      } catch {
+        setNominatim([]);
+      } finally {
+        setNominatimLoading(false);
+      }
+    }, 450);
+    return () => clearTimeout(timer);
+  }, [query]);
 
   const filtered = useMemo(() => {
     let result = places;
@@ -77,13 +105,72 @@ export default function ScrapbookMapPage() {
       </header>
 
       <div className="map-filters-stack">
-        <input
-          type="search"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="🔍 search by name, location, or review…"
-          className="map-search"
-        />
+        <div className="map-search-wrap">
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => { setQuery(e.target.value); setDropdownOpen(true); }}
+            onFocus={() => setDropdownOpen(true)}
+            onBlur={() => setTimeout(() => setDropdownOpen(false), 200)}
+            placeholder="🔍 search your places or anywhere on the map…"
+            className="map-search"
+          />
+          {dropdownOpen && query.trim().length >= 2 && (
+            <div className="map-search-dropdown">
+              {filtered.length > 0 && (
+                <>
+                  <p className="map-search-section">your places ({filtered.length})</p>
+                  <ul>
+                    {filtered.slice(0, 5).map((p) => (
+                      <li key={p.id}>
+                        <button
+                          type="button"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            setTempMarker(null);
+                            setQuery(p.name);
+                            setDropdownOpen(false);
+                          }}
+                          className="map-search-result"
+                        >
+                          📌 <strong>{p.name}</strong>
+                          {p.location && <span> — {p.location}</span>}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+
+              <p className="map-search-section">other locations {nominatimLoading && "· searching…"}</p>
+              {nominatim.length === 0 && !nominatimLoading ? (
+                <p className="map-search-empty">type a city or place to search anywhere</p>
+              ) : (
+                <ul>
+                  {nominatim.map((r) => (
+                    <li key={`${r.osm_id}-${r.osm_type}`}>
+                      <button
+                        type="button"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          setTempMarker({
+                            lat: parseFloat(r.lat),
+                            lng: parseFloat(r.lon),
+                            name: r.display_name,
+                          });
+                          setDropdownOpen(false);
+                        }}
+                        className="map-search-result"
+                      >
+                        🌍 {r.display_name}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+        </div>
         <div className="map-filters">
           {FILTERS.map((f) => (
             <button
@@ -100,10 +187,10 @@ export default function ScrapbookMapPage() {
               ? `${filtered.length} ${filtered.length === 1 ? "place" : "places"}`
               : `${filtered.length} of ${places.length}`}
           </span>
-          {(query || filter !== "all") && (
+          {(query || filter !== "all" || tempMarker) && (
             <button
               type="button"
-              onClick={() => { setQuery(""); setFilter("all"); }}
+              onClick={() => { setQuery(""); setFilter("all"); setTempMarker(null); }}
               className="map-clear-btn"
             >
               clear
