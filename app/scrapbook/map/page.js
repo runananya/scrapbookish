@@ -15,11 +15,20 @@ const FILTERS = [
   { id: "recommended", label: "recommend ★" },
 ];
 
+function filterStickerCls(id) {
+  if (id === "all")         return "sticker-yellow";
+  if (id === "visited")     return "sticker-sage";
+  if (id === "wishlist")    return "sticker-pink";
+  if (id === "recommended") return "sticker-coral";
+  return "sticker-pink";
+}
+
 export default function ScrapbookMapPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [places, setPlaces] = useState([]);
   const [filter, setFilter] = useState("all");
+  const [query, setQuery] = useState("");
 
   useEffect(() => {
     const supabase = createClient();
@@ -40,10 +49,18 @@ export default function ScrapbookMapPage() {
     })();
   }, [router]);
 
-  const filtered = useMemo(
-    () => filter === "all" ? places : places.filter((p) => p.status === filter),
-    [filter, places]
-  );
+  const filtered = useMemo(() => {
+    let result = places;
+    if (filter !== "all") result = result.filter((p) => p.status === filter);
+    const q = query.trim().toLowerCase();
+    if (q) {
+      result = result.filter((p) => {
+        const hay = `${p.name || ""} ${p.location || ""} ${p.review || ""}`.toLowerCase();
+        return hay.includes(q);
+      });
+    }
+    return result;
+  }, [filter, query, places]);
 
   if (loading) {
     return <main className="auth-wrap"><p className="auth-sub">loading the map…</p></main>;
@@ -59,20 +76,40 @@ export default function ScrapbookMapPage() {
         </nav>
       </header>
 
-      <div className="map-filters">
-        {FILTERS.map((f) => (
-          <button
-            key={f.id}
-            type="button"
-            onClick={() => setFilter(f.id)}
-            className={`sticker ${filterStickerCls(f.id)} ${filter === f.id ? "sticker-active" : ""}`}
-          >
-            {f.label}
-          </button>
-        ))}
-        <span className="map-count">
-          {filtered.length} {filtered.length === 1 ? "place" : "places"}
-        </span>
+      <div className="map-filters-stack">
+        <input
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="🔍 search by name, location, or review…"
+          className="map-search"
+        />
+        <div className="map-filters">
+          {FILTERS.map((f) => (
+            <button
+              key={f.id}
+              type="button"
+              onClick={() => setFilter(f.id)}
+              className={`sticker ${filterStickerCls(f.id)} ${filter === f.id ? "sticker-active" : ""}`}
+            >
+              {f.label}
+            </button>
+          ))}
+          <span className="map-count">
+            {filtered.length === places.length
+              ? `${filtered.length} ${filtered.length === 1 ? "place" : "places"}`
+              : `${filtered.length} of ${places.length}`}
+          </span>
+          {(query || filter !== "all") && (
+            <button
+              type="button"
+              onClick={() => { setQuery(""); setFilter("all"); }}
+              className="map-clear-btn"
+            >
+              clear
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="map-stage">

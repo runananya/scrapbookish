@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -51,7 +51,27 @@ function InvalidateSize() {
   return null;
 }
 
-export default function PlacesMap({ places }) {
+// Re-fit the map view to the bounds of the visible markers whenever the
+// place list changes (used for search/filter).
+function AutoFitToPlaces({ places }) {
+  const map = useMap();
+  const lastKeyRef = useRef("");
+  useEffect(() => {
+    if (!places.length) return;
+    const key = places.map((p) => p.id).join(",");
+    if (key === lastKeyRef.current) return;
+    lastKeyRef.current = key;
+    if (places.length === 1) {
+      map.flyTo([places[0].lat, places[0].lng], 13, { duration: 0.8 });
+    } else {
+      const bounds = L.latLngBounds(places.map((p) => [p.lat, p.lng]));
+      map.flyToBounds(bounds, { padding: [60, 60], maxZoom: 14, duration: 0.8 });
+    }
+  }, [places, map]);
+  return null;
+}
+
+export default function PlacesMap({ places, autoFit = false }) {
   const center = places.length
     ? [places[0].lat, places[0].lng]
     : [12.9716, 77.5946];

@@ -2230,17 +2230,46 @@ body {
 }
 .nav-map { padding-bottom: 12px; }
 
+.map-filters-stack {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 4px 56px 16px;
+  width: 100%;
+  position: relative;
+  z-index: 2;
+}
+.map-search {
+  width: 100%;
+  padding: 12px 18px;
+  border: 2px solid var(--ink);
+  border-radius: 28px;
+  background: #fffdf7;
+  font-family: var(--ff-kalam);
+  font-size: 16px;
+  color: var(--ink);
+  margin-bottom: 14px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+.map-search:focus {
+  outline: 3px solid var(--coral);
+  outline-offset: 1px;
+}
+.map-clear-btn {
+  background: none;
+  border: none;
+  font-family: var(--ff-caveat);
+  font-size: 18px;
+  color: var(--coral-deep);
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 4px 8px;
+}
 .map-filters {
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
   align-items: center;
-  padding: 4px 56px 16px;
-  max-width: 1400px;
-  margin: 0 auto;
   width: 100%;
-  position: relative;
-  z-index: 2;
 }
 .map-filters .sticker {
   cursor: pointer;
