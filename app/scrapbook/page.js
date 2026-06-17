@@ -10,6 +10,7 @@ import { createClient } from "@/lib/supabase/client";
 const MemoriesBook = dynamic(() => import("@/components/MemoriesBook"), { ssr: false });
 const FriendsFeed = dynamic(() => import("@/components/FriendsFeed"), { ssr: false });
 import UserMenu from "@/components/UserMenu";
+import LazyOnVisible from "@/components/LazyOnVisible";
 
 export default function ScrapbookPage() {
   const router = useRouter();
@@ -188,7 +189,12 @@ export default function ScrapbookPage() {
 
         {places.length > 0 && (
           <section className="scrap-book-section">
-            <MemoriesBook places={places} editable />
+            <LazyOnVisible
+              rootMargin="400px"
+              placeholder={<BookSkeleton />}
+            >
+              <MemoriesBook places={places} editable />
+            </LazyOnVisible>
           </section>
         )}
 
@@ -235,6 +241,54 @@ export default function ScrapbookPage() {
         )}
       </main>
     </>
+  );
+}
+
+function BookSkeleton() {
+  return (
+    <div style={{
+      width: "100%",
+      height: "100%",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      flexDirection: "column",
+      gap: 14,
+      padding: 40,
+    }}>
+      <div style={{
+        width: 160,
+        height: 220,
+        background: "linear-gradient(135deg, #7a4a25 0%, #3a2010 100%)",
+        borderRadius: 4,
+        boxShadow: "0 14px 30px rgba(0,0,0,0.25)",
+        position: "relative",
+      }}>
+        <div style={{
+          position: "absolute",
+          inset: 14,
+          border: "2px solid #d4af37",
+          borderRadius: 2,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          color: "#d4af37",
+          fontFamily: "var(--ff-marker)",
+          fontSize: 22,
+          textAlign: "center",
+          padding: 10,
+        }}>
+          Yours<br/>Truly
+        </div>
+      </div>
+      <p style={{
+        fontFamily: "var(--ff-caveat)",
+        fontSize: 18,
+        color: "var(--ink-soft)",
+      }}>
+        opening the book…
+      </p>
+    </div>
   );
 }
 
