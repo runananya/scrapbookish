@@ -7,11 +7,16 @@ import "leaflet/dist/leaflet.css";
 
 const DEFAULT_CENTER = [12.9716, 77.5946]; // Bangalore — sensible default
 
-// MapPicker always uses the accurate Voyager style for precision when picking pins
+// MapPicker always uses the most accurate style for picking pins:
+// Stadia Alidade Smooth if the key is set, else CartoDB Voyager
 function tileUrl() {
+  const k = process.env.NEXT_PUBLIC_STADIA_API_KEY;
+  if (k) return `https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png?api_key=${k}`;
   return "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
 }
 function tileAttribution() {
+  const k = process.env.NEXT_PUBLIC_STADIA_API_KEY;
+  if (k) return '&copy; <a href="https://stadiamaps.com/">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
   return '&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
 }
 

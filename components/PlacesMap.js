@@ -23,12 +23,15 @@ function makeIcon(status) {
 }
 
 function tileUrl(style) {
+  const k = process.env.NEXT_PUBLIC_STADIA_API_KEY;
   if (style === "watercolor") {
-    const k = process.env.NEXT_PUBLIC_STADIA_API_KEY;
     if (k) return `https://tiles.stadiamaps.com/tiles/stamen_watercolor/{z}/{x}/{y}.jpg?api_key=${k}`;
     // fallback when no key: use accurate (so it doesn't look broken)
   }
-  // accurate (default): CartoDB Voyager — colorful, shows POIs + streets at high zoom
+  // accurate (default): Stadia Alidade Smooth — modern, clean, full OSM data
+  // with restaurants/bars/cafes appearing at zoom 14+. If no Stadia key, fall
+  // back to CartoDB Voyager (free, no auth).
+  if (k) return `https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png?api_key=${k}`;
   return "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
 }
 
@@ -41,8 +44,12 @@ function labelsTileUrl(style) {
 }
 
 function tileAttribution(style) {
+  const k = process.env.NEXT_PUBLIC_STADIA_API_KEY;
   if (style === "watercolor") {
     return '&copy; <a href="https://stadiamaps.com/">Stadia Maps</a> &copy; <a href="https://stamen.com/">Stamen</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
+  }
+  if (k) {
+    return '&copy; <a href="https://stadiamaps.com/">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
   }
   return '&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
 }
