@@ -10,6 +10,7 @@ import { createClient } from "@/lib/supabase/client";
 const MemoriesBook = dynamic(() => import("@/components/MemoriesBook"), { ssr: false });
 const FriendsFeed = dynamic(() => import("@/components/FriendsFeed"), { ssr: false });
 import UserMenu from "@/components/UserMenu";
+import MobileNav from "@/components/MobileNav";
 import LazyOnVisible from "@/components/LazyOnVisible";
 
 export default function ScrapbookPage() {
@@ -160,13 +161,23 @@ export default function ScrapbookPage() {
 
       <header className="nav">
         <Link href="/" className="logo">scrapbook<span className="logo-dot">.</span></Link>
-        <nav className="nav-links">
+        <nav className="nav-links nav-links-desktop">
           <Link href="/scrapbook/map" className="sticker sticker-yellow">🗺️ map</Link>
           <Link href="/friends" className="sticker sticker-pink">♡ friends</Link>
           <Link href="/groups" className="sticker sticker-pink">👯 groups</Link>
           <Link href="/scrapbook/add" className="sticker sticker-sage">+ add a place</Link>
           <UserMenu profile={profile} onLogout={logout} />
         </nav>
+        <MobileNav
+          profile={profile}
+          onLogout={logout}
+          links={[
+            { href: "/scrapbook/add", label: "+ add a place" },
+            { href: "/scrapbook/map", label: "🗺️ map" },
+            { href: "/friends", label: "♡ friends" },
+            { href: "/groups", label: "👯 groups" },
+          ]}
+        />
       </header>
 
       <main className="scrap-main">

@@ -38,7 +38,7 @@ export default function UserMenu({ profile, onLogout }) {
   }, [open]);
 
   return (
-    <div className="user-menu" ref={ref}>
+    <div className="user-menu user-menu-desktop" ref={ref}>
       <button
         type="button"
         className="user-menu-trigger"
