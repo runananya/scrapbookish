@@ -35,5 +35,9 @@ export default function LazyOnVisible({ children, placeholder = null, rootMargin
     return () => observer.disconnect();
   }, [visible, rootMargin]);
 
-  return <div ref={ref}>{visible ? children : placeholder}</div>;
+  return (
+    <div ref={ref} style={{ width: "100%", height: "100%" }}>
+      {visible ? children : placeholder}
+    </div>
+  );
 }
