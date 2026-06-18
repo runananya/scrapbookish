@@ -1136,6 +1136,55 @@ body {
 }
 .book-palette-actions .btn { padding: 8px 18px; font-size: 14px; }
 
+.book-palette-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.book-palette-status {
+  font-family: var(--ff-caveat);
+  font-size: 14px;
+  color: var(--sage);
+  font-weight: 700;
+  transition: color 0.2s ease;
+}
+.book-palette-status.is-pending { color: var(--ink-soft); }
+
+.book-selected-controls {
+  background: var(--paper);
+  border: 1.5px dashed var(--coral);
+  border-radius: 10px;
+  padding: 10px 14px 12px;
+  margin-bottom: 12px;
+}
+.book-selected-label {
+  font-family: var(--ff-caveat);
+  font-size: 13px;
+  color: var(--ink-soft);
+  margin-bottom: 8px;
+}
+.book-control-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+.book-control-label {
+  font-family: var(--ff-kalam);
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--ink);
+  width: 50px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.book-control-slider {
+  flex: 1;
+  accent-color: var(--coral);
+}
+
 .book-text-row {
   flex-wrap: nowrap;
   gap: 6px;

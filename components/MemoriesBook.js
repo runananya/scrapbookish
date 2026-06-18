@@ -92,7 +92,10 @@ export default function MemoriesBook({ places: initialPlaces, editable = false }
   const [editing, setEditing] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [selectedId, setSelectedId] = useState(null);
+  const [lastSavedAt, setLastSavedAt] = useState(0);
   const originalDecorationsRef = useRef({}); // placeId → original decorations (for cancel)
+  const saveTimerRef = useRef(null);
 
   useEffect(() => { setPlaces(initialPlaces); }, [initialPlaces]);
 
@@ -128,7 +131,7 @@ export default function MemoriesBook({ places: initialPlaces, editable = false }
     setDirty(false);
   }
 
-  async function saveEditing() {
+  async function saveSilently() {
     if (pageIndex < 0) return;
     setSaving(true);
     const supabase = createClient();
@@ -137,13 +140,24 @@ export default function MemoriesBook({ places: initialPlaces, editable = false }
       .update({ decorations: currentPlace.decorations || [] })
       .eq("id", currentPlace.id);
     setSaving(false);
-    if (error) {
-      alert(error.message);
-      return;
-    }
-    delete originalDecorationsRef.current[currentPlace.id];
-    setEditing(false);
+    if (error) return; // silent failure — user will see "unsaved" indicator
     setDirty(false);
+    setLastSavedAt(Date.now());
+  }
+
+  // Debounced auto-save: 1.2s after the last change
+  useEffect(() => {
+    if (!editing || !dirty || !currentPlace) return;
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => { saveSilently(); }, 1200);
+    return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
+  }, [dirty, editing, pageIndex, currentPlace?.decorations]); // eslint-disable-line
+
+  async function doneEditing() {
+    if (dirty) await saveSilently();
+    delete originalDecorationsRef.current[currentPlace?.id];
+    setEditing(false);
+    setSelectedId(null);
   }
 
   function addEmojiSticker(emoji) {
@@ -185,7 +199,18 @@ export default function MemoriesBook({ places: initialPlaces, editable = false }
   }
   function removeDecoration(decId) {
     updateCurrentDecorations((decs) => decs.filter((d) => d.id !== decId));
+    if (selectedId === decId) setSelectedId(null);
   }
+  function resizeDecoration(decId, size) {
+    updateCurrentDecorations((decs) => decs.map((d) => d.id === decId ? { ...d, size } : d));
+  }
+  function rotateDecoration(decId, rotation) {
+    updateCurrentDecorations((decs) => decs.map((d) => d.id === decId ? { ...d, rotation } : d));
+  }
+  function selectDecoration(decId) {
+    setSelectedId(decId);
+  }
+  const selectedDecoration = currentPlace?.decorations?.find((d) => d.id === selectedId) || null;
 
   return (
     <div className="book-stage">
@@ -207,10 +232,12 @@ export default function MemoriesBook({ places: initialPlaces, editable = false }
               places={places}
               pageIndex={pageIndex}
               editing={editing}
+              selectedId={selectedId}
               onTurnRight={() => canNext && setPageIndex(pageIndex + 1)}
               onTurnLeft={() => canPrev && setPageIndex(pageIndex - 1)}
               onMoveDecoration={moveDecoration}
               onRemoveDecoration={removeDecoration}
+              onSelectDecoration={selectDecoration}
             />
           </group>
         </Suspense>
@@ -239,10 +266,15 @@ export default function MemoriesBook({ places: initialPlaces, editable = false }
           pageIndex={pageIndex}
           onAddEmoji={addEmojiSticker}
           onAddText={addTextDecoration}
-          onSave={saveEditing}
+          onDone={doneEditing}
           onCancel={cancelEditing}
           saving={saving}
           dirty={dirty}
+          lastSavedAt={lastSavedAt}
+          selectedDecoration={selectedDecoration}
+          onResize={(size) => selectedId && resizeDecoration(selectedId, size)}
+          onRotate={(rot) => selectedId && rotateDecoration(selectedId, rot)}
+          onRemoveSelected={() => selectedId && removeDecoration(selectedId)}
         />
       )}
     </div>
@@ -260,7 +292,20 @@ function DebugCube() {
   );
 }
 
-function BookPalette({ pageIndex, onAddEmoji, onAddText, onSave, onCancel, saving, dirty }) {
+function BookPalette({
+  pageIndex,
+  onAddEmoji,
+  onAddText,
+  onDone,
+  onCancel,
+  saving,
+  dirty,
+  lastSavedAt,
+  selectedDecoration,
+  onResize,
+  onRotate,
+  onRemoveSelected,
+}) {
   const [textInputOpen, setTextInputOpen] = useState(false);
   const [textValue, setTextValue] = useState("");
   const inputRef = useRef(null);
@@ -275,9 +320,55 @@ function BookPalette({ pageIndex, onAddEmoji, onAddText, onSave, onCancel, savin
     setTextInputOpen(false);
   }
 
+  // human-friendly saved-status
+  let saveLabel = "✓ all saved";
+  if (saving) saveLabel = "saving…";
+  else if (dirty) saveLabel = "saving in a moment…";
+  else if (lastSavedAt > 0) saveLabel = "✓ saved";
+
   return (
     <div className="book-palette">
-      <p className="book-palette-title">decorate page {pageIndex + 1}</p>
+      <div className="book-palette-header">
+        <p className="book-palette-title">decorating page {pageIndex + 1}</p>
+        <span className={`book-palette-status ${dirty || saving ? "is-pending" : ""}`}>{saveLabel}</span>
+      </div>
+
+      {selectedDecoration ? (
+        // SELECTED MODE: show controls for the picked sticker/text
+        <div className="book-selected-controls">
+          <p className="book-selected-label">
+            tap empty space to add new · drag to move · double-click to remove
+          </p>
+          <div className="book-control-row">
+            <label className="book-control-label">size</label>
+            <input
+              type="range"
+              min={selectedDecoration.type === "text" ? 14 : 24}
+              max={selectedDecoration.type === "text" ? 80 : 160}
+              value={selectedDecoration.size}
+              onChange={(e) => onResize(Number(e.target.value))}
+              className="book-control-slider"
+            />
+          </div>
+          <div className="book-control-row">
+            <label className="book-control-label">rotate</label>
+            <input
+              type="range"
+              min={-45}
+              max={45}
+              value={selectedDecoration.rotation || 0}
+              onChange={(e) => onRotate(Number(e.target.value))}
+              className="book-control-slider"
+            />
+          </div>
+          <div className="book-palette-row" style={{ justifyContent: "flex-end" }}>
+            <button onClick={onRemoveSelected} className="btn btn-ghost" style={{ color: "var(--coral-deep)", fontSize: 13 }}>
+              🗑 remove this
+            </button>
+          </div>
+        </div>
+      ) : null}
+
       <div className="book-palette-row">
         {EMOJI_PALETTE.map((e) => (
           <button key={e} onClick={() => onAddEmoji(e)} className="book-palette-emoji">{e}</button>
@@ -307,18 +398,18 @@ function BookPalette({ pageIndex, onAddEmoji, onAddText, onSave, onCancel, savin
         </div>
       )}
 
-      <p className="book-palette-hint">drag stickers on the page · double-click to remove</p>
+      <p className="book-palette-hint">tap any sticker to select & resize · drag to move · double-click to remove</p>
       <div className="book-palette-actions">
-        <button onClick={onSave} disabled={saving || !dirty} className="btn btn-primary">
-          {saving ? "saving…" : dirty ? "✓ save" : "saved"}
+        <button onClick={onDone} className="btn btn-primary" disabled={saving}>
+          ✓ done
         </button>
-        <button onClick={onCancel} className="btn btn-ghost">cancel</button>
+        <button onClick={onCancel} className="btn btn-ghost">undo all changes</button>
       </div>
     </div>
   );
 }
 
-function Book({ places, pageIndex, editing, onTurnRight, onTurnLeft, onMoveDecoration, onRemoveDecoration }) {
+function Book({ places, pageIndex, editing, selectedId, onTurnRight, onTurnLeft, onMoveDecoration, onRemoveDecoration, onSelectDecoration }) {
   return (
     <group>
       {/* cover (flippable like a page) — sits on top of the stack */}
@@ -344,8 +435,10 @@ function Book({ places, pageIndex, editing, onTurnRight, onTurnLeft, onMoveDecor
             place={place}
             index={i}
             editing={editing && i === pageIndex}
+            selectedId={selectedId}
             onMoveDecoration={onMoveDecoration}
             onRemoveDecoration={onRemoveDecoration}
+            onSelectDecoration={onSelectDecoration}
           />
         </FlipPage>
       ))}
@@ -509,7 +602,7 @@ function CoverFace() {
   );
 }
 
-function MemoryFace({ place, index, editing, onMoveDecoration, onRemoveDecoration }) {
+function MemoryFace({ place, index, editing, selectedId, onMoveDecoration, onRemoveDecoration, onSelectDecoration }) {
   const stars = place.rating > 0 ? "★".repeat(place.rating) + "☆".repeat(5 - place.rating) : "";
   const reviewLines = useMemo(() => {
     const r = (place.review || "").trim();
@@ -621,31 +714,38 @@ function MemoryFace({ place, index, editing, onMoveDecoration, onRemoveDecoratio
           key={dec.id}
           decoration={dec}
           editing={editing}
+          selected={selectedId === dec.id}
           onMove={(x, y) => onMoveDecoration(dec.id, x, y)}
           onRemove={() => onRemoveDecoration(dec.id)}
+          onSelect={() => onSelectDecoration?.(dec.id)}
         />
       ))}
     </group>
   );
 }
 
-function DecorationOnPage({ decoration, editing, onMove, onRemove }) {
+function DecorationOnPage({ decoration, editing, selected, onMove, onRemove, onSelect }) {
   const { x, y, size, rotation } = decorationToWorld(decoration);
   const Z = 0.025; // above all page content
   const [hovered, setHovered] = useState(false);
   const { camera, gl } = useThree();
+  const dragMovedRef = useRef(false);
 
   function onPointerDown(e) {
     if (!editing) return;
     e.stopPropagation();
     e.nativeEvent?.preventDefault?.();
+    dragMovedRef.current = false;
+    // Select immediately on press (even without dragging)
+    onSelect?.();
 
     const raycaster = new THREE.Raycaster();
-    // Reusable plane representing the page surface in world space (z=0)
     const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
     const intersect = new THREE.Vector3();
     const ndc = new THREE.Vector2();
     const canvas = gl.domElement;
+    const startX = e.nativeEvent?.clientX ?? 0;
+    const startY = e.nativeEvent?.clientY ?? 0;
 
     function screenToWorldOnPage(clientX, clientY) {
       const rect = canvas.getBoundingClientRect();
@@ -657,6 +757,9 @@ function DecorationOnPage({ decoration, editing, onMove, onRemove }) {
     }
 
     function onMoveDoc(we) {
+      const dx = we.clientX - startX;
+      const dy = we.clientY - startY;
+      if (Math.abs(dx) + Math.abs(dy) > 3) dragMovedRef.current = true;
       const p = screenToWorldOnPage(we.clientX, we.clientY);
       if (!p) return;
       const xPct = (p.x / PAGE_W + 0.5) * 100;
@@ -679,8 +782,8 @@ function DecorationOnPage({ decoration, editing, onMove, onRemove }) {
     if (window.confirm(`remove this ${decoration.type}?`)) onRemove();
   }
 
-  // hitbox size — generous so emojis/text are easy to grab
-  const hit = Math.max(size * 1.6, 0.35);
+  // hitbox size — generous so emojis/text are easy to grab. Bigger when selected.
+  const hit = Math.max(size * (selected ? 2.2 : 1.8), 0.45);
 
   const isImage = decoration.type === "sticker" && decoration.imageUrl;
   const isEmoji = decoration.type === "sticker" && !decoration.imageUrl;
@@ -690,20 +793,29 @@ function DecorationOnPage({ decoration, editing, onMove, onRemove }) {
     <group position={[x, y, Z]} rotation={[0, 0, rotation]}>
       {/* invisible drag-and-double-click hitbox (only mounted in edit mode) */}
       {editing && (
-        <mesh
-          onPointerDown={onPointerDown}
-          onDoubleClick={onDoubleClick}
-          onPointerOver={() => setHovered(true)}
-          onPointerOut={() => setHovered(false)}
-        >
-          <planeGeometry args={[hit, hit]} />
-          <meshBasicMaterial
-            color={hovered ? "#e07856" : "#000000"}
-            transparent
-            opacity={hovered ? 0.18 : 0.001}
-            depthWrite={false}
-          />
-        </mesh>
+        <>
+          {/* selection ring — only visible when selected */}
+          {selected && (
+            <mesh position={[0, 0, -0.001]}>
+              <ringGeometry args={[hit / 2 + 0.01, hit / 2 + 0.05, 32]} />
+              <meshBasicMaterial color="#e07856" transparent opacity={0.7} />
+            </mesh>
+          )}
+          <mesh
+            onPointerDown={onPointerDown}
+            onDoubleClick={onDoubleClick}
+            onPointerOver={() => setHovered(true)}
+            onPointerOut={() => setHovered(false)}
+          >
+            <planeGeometry args={[hit, hit]} />
+            <meshBasicMaterial
+              color={selected ? "#e07856" : hovered ? "#e07856" : "#000000"}
+              transparent
+              opacity={selected ? 0.18 : hovered ? 0.14 : 0.001}
+              depthWrite={false}
+            />
+          </mesh>
+        </>
       )}
 
       {isEmoji && (
