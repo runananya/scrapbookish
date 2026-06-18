@@ -110,20 +110,33 @@ export async function POST(req, { params }) {
       niceTime = "";
     }
 
-    const results = await Promise.allSettled(
-      attendees.map((a) =>
-        resend.emails.send({
-          from: fromAddress,
-          to: a.email,
-          subject: `you're invited: ${plan.title}`,
-          html: buildEmailHtml({ plan, group, senderName, niceDate, niceTime }),
-          attachments: [
-            { filename: "invitation.png", content: pngBase64 },
-            { filename: "event.ics", content: ics, contentType: "text/calendar" },
-          ],
-        })
-      )
-    );
+    // Throttle to Resend's free-tier limit (2 requests/sec). Send in batches of
+    // 2, then sleep ~600ms between batches. Sequential Promise.allSettled per
+    // batch so we still get per-recipient errors.
+    const results = [];
+    const BATCH_SIZE = 2;
+    const DELAY_MS = 700;
+    for (let i = 0; i < attendees.length; i += BATCH_SIZE) {
+      const batch = attendees.slice(i, i + BATCH_SIZE);
+      const batchResults = await Promise.allSettled(
+        batch.map((a) =>
+          resend.emails.send({
+            from: fromAddress,
+            to: a.email,
+            subject: `you're invited: ${plan.title}`,
+            html: buildEmailHtml({ plan, group, senderName, niceDate, niceTime }),
+            attachments: [
+              { filename: "invitation.png", content: pngBase64 },
+              { filename: "event.ics", content: ics, contentType: "text/calendar" },
+            ],
+          })
+        )
+      );
+      results.push(...batchResults);
+      if (i + BATCH_SIZE < attendees.length) {
+        await new Promise((r) => setTimeout(r, DELAY_MS));
+      }
+    }
 
     const sent = results.filter((r) => r.status === "fulfilled" && !r.value?.error).length;
     const failed = results.length - sent;
