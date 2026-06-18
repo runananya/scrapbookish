@@ -1409,6 +1409,135 @@ body {
   .book-palette-actions .btn { padding: 7px 14px; font-size: 13px; }
 }
 
+/* ─────────────────────────────────────────────
+   ROUND 2 — additional mobile fixes
+   ───────────────────────────────────────────── */
+
+/* iOS auto-zoom prevention: any text input under 16px triggers iPhone zoom on
+   focus. Force 16px floor on every input/textarea at small widths. */
+@media (max-width: 760px) {
+  input[type="text"], input[type="email"], input[type="password"],
+  input[type="search"], input[type="number"], input[type="tel"],
+  input[type="datetime-local"], input[type="date"], input[type="time"],
+  input[type="url"], select, textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* Let vertical scroll pass THROUGH the 3D book canvas — otherwise iOS captures
+   the gesture and scrolling past the book gets stuck. Single-finger tap still
+   reaches the canvas (for click-to-flip). */
+@media (max-width: 760px) {
+  .scrap-book-section canvas {
+    touch-action: pan-y !important;
+  }
+}
+
+/* Plan detail invitation preview — auto-scale based on viewport width.
+   The card is 1200×800. Original scale 0.6 (desktop) → 0.4 (≤760px). Now
+   use calc so it never exceeds viewport width. */
+@media (max-width: 760px) {
+  .invite-preview {
+    max-width: calc(100vw - 24px);
+  }
+  .invite-preview .invite-card {
+    transform: scale(calc((100vw - 32px) / 1200));
+    transform-origin: top left;
+  }
+}
+
+/* ─────────────────────────────────────────────
+   MOBILE TWEAKS for landing page
+   ───────────────────────────────────────────── */
+
+@media (max-width: 760px) {
+  .hero-spread {
+    padding: 30px 18px 60px;
+    min-height: auto;
+  }
+  .hero-paper { inset: 14px 8px; border-radius: 6px; }
+
+  .hero-title-block { padding-top: 8px; margin-bottom: 22px; }
+  .hero-kicker { font-size: 22px !important; }
+  .hero-possessive { font-size: clamp(40px, 11vw, 64px) !important; }
+
+  /* Stack examples in a single column so they don't crowd the center */
+  .hero-example {
+    width: calc(50% - 16px);
+    max-width: 200px;
+  }
+  .hero-example .example-photo { width: 100%; height: auto; aspect-ratio: 1; }
+  .hero-example .example-caption { font-size: 16px; }
+  .hero-example .example-meta { font-size: 11px; }
+
+  .center-polaroid { width: 240px; padding: 14px 14px 40px; }
+  .center-photo { height: auto; aspect-ratio: 4/5; }
+  .center-caption { font-size: 22px; }
+
+  /* invite frame inside center polaroid */
+  .invite-plus { font-size: 64px; }
+  .invite-text { font-size: 18px; }
+
+  .hero-cta { font-size: 18px; padding: 12px 24px; }
+  .hero-howitworks { font-size: 18px; }
+
+  /* Features row — single column instead of 3 */
+  .features { padding: 30px 18px 50px; }
+  .section-title { font-size: 38px !important; margin-bottom: 36px; }
+  .polaroid-row { grid-template-columns: 1fr; gap: 38px; }
+}
+
+/* ─────────────────────────────────────────────
+   MOBILE TWEAKS — auth + edit pages
+   ───────────────────────────────────────────── */
+
+@media (max-width: 600px) {
+  .auth-wrap {
+    margin: 30px 14px;
+    padding: 30px 22px 26px;
+  }
+  .auth-wrap .auth-title { font-size: 36px !important; }
+  .auth-wrap .auth-sub { font-size: 20px; }
+  .auth-input { padding: 10px 12px; }
+}
+
+/* ─────────────────────────────────────────────
+   MOBILE TWEAKS — profile / friends / groups
+   ───────────────────────────────────────────── */
+
+@media (max-width: 760px) {
+  .group-grid { grid-template-columns: 1fr; gap: 22px; }
+  .group-card { padding: 24px 22px; }
+  .group-card-name { font-size: 26px; }
+
+  .members-list { gap: 6px; }
+  .member-chip {
+    font-size: 16px !important;
+    padding: 4px 12px 4px 4px !important;
+  }
+  .member-chip-avatar { width: 24px !important; height: 24px !important; }
+
+  .friend-list-item { gap: 10px; padding: 10px 14px; }
+  .friend-list-name { font-size: 19px; }
+  .friend-share-card { padding: 18px 18px; }
+
+  .recs-row { grid-template-columns: 1fr; gap: 20px; }
+}
+
+/* ─────────────────────────────────────────────
+   MOBILE TWEAKS — sticker picker modal
+   ───────────────────────────────────────────── */
+
+@media (max-width: 600px) {
+  .sticker-picker {
+    padding: 22px 18px 18px;
+    max-height: 92vh;
+  }
+  .picker-stage { padding: 8px; max-height: 55vh; }
+  .picker-sheet { max-height: 50vh; }
+  .modal-title { font-size: 32px; }
+}
+
 .book-text-row {
   flex-wrap: nowrap;
   gap: 6px;
